@@ -1,7 +1,13 @@
 \documentclass[]{report}
-\usepackage[utf8]{inputenc}
-\usepackage{graphicx}
+\input{preamble.tex}
 \graphicspath{ {images/} }
+\newcommand{\simpl}{
+		\emph{SImPL}
+	}
+	
+\newcommand{\gramdef}{
+		::=
+	}
 
 % Title Page
 \title{
@@ -23,7 +29,7 @@
 \chapter{Summary of theory}
 
 \chapter{Basic symbolic execution for the \emph{SImPL} language}
-
+	\input{chapters/basic-symb-ex.tex}
 \chapter{Further extensions}
 
 \chapter{Conclusion}

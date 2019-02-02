@@ -1,0 +1,33 @@
+\section{description}
+
+In this chapter we will describe the process of implementing symbolic execution for a simple imperative language called \simpl.
+
+\section{Introducing the \simpl language}
+
+\simpl\textbf{(Simple Imperative Programming Language)} is a small imperative programming language, designed to highlight the interesting use cases of symbolic execution. The language supports only one type, namely the set integers $\mathbb{N}$, where 0 and 1 doubles as the logic values \emph{true} and \emph{false} respectively. \simpl supports basic
+ variables that can be assigned the value of any expression, as well as basic branching functionality through an \textbf{If} - \textbf{Then} - \textbf{Else} statement. Furthermore it allows for looping through a \textbf{While} - \textbf{Do} statement.
+
+We will describe the language formally, by the following Context Free Grammar:
+
+%TODO find a better way to illustrate the grammar 
+\newpage
+\begin{grammar}
+	<int> ::= 0 | 1 | -1 | 2 | -2 | $\ldots$
+	
+	<var> ::= a | b | c | $\ldots$ 
+	
+	<exp> ::= <int>
+	\alt <var>
+	\alt <exp> $+$ <exp> | <exp> $-$ <exp> | <exp> $*$ <exp> | <exp> $/$ <exp>
+	\alt <exp> $>$ <exp> | <exp> $==$ <exp> 
+	\alt ( <exp> )	
+	
+	<stm> ::= <var> = <exp>
+	\alt <stm> <stm>
+	\alt if <exp> then <exp> else <exp>
+	\alt while <exp> do <exp>
+	\alt 
+	
+\end{grammar}
+
+where $+, *, -, /$ denotes the usual arithmatic operators on integers, and $>, ==$ denotes the comparison-operators of \emph{greater-than} and \emph{equal-to} respectively.
