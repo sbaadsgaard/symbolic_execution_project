@@ -4,7 +4,9 @@ In this chapter we will describe the process of implementing symbolic execution 
 
 \section{Introducing the \simpl language}
 
-\simpl\textbf{(Simple Imperative Programming Language)} is a small imperative programming language, designed to highlight the interesting use cases of symbolic execution. The language supports only one type, namely the set integers $\mathbb{N}$, where 0 and 1 doubles as the logic values \emph{true} and \emph{false} respectively. \simpl supports basic
+\simpl\textbf{(Simple Imperative Programming Language)} is a small imperative programming language, designed to highlight the interesting use cases of symbolic execution. The language supports only one type, namely the set integers $\mathbb{N}$.
+Furthermore we will interpret 0 as \emph{false} and any other integer as \emph{true}.
+ \simpl supports basic
  variables that can be assigned the value of any expression, as well as basic branching functionality through an \textbf{If} - \textbf{Then} - \textbf{Else} statement. Furthermore it allows for looping through a \textbf{While} - \textbf{Do} statement.
 
 We will describe the language formally, by the following Context Free Grammar:
@@ -22,12 +24,13 @@ We will describe the language formally, by the following Context Free Grammar:
 	\alt <exp> $>$ <exp> | <exp> $==$ <exp> 
 	\alt ( <exp> )	
 	
-	<stm> ::= <var> = <exp>
+	<stm> ::= <exp>
+	\alt <var> = <exp>
 	\alt <stm> <stm>
-	\alt if <exp> then <exp> else <exp>
-	\alt while <exp> do <exp>
+	\alt if <exp> then <stm> else <stm>
+	\alt while <exp> do <stm>
 	\alt 
 	
 \end{grammar}
 
-where $+, *, -, /$ denotes the usual arithmatic operators on integers, and $>, ==$ denotes the comparison-operators of \emph{greater-than} and \emph{equal-to} respectively.
+where $+, *, -, /$ denotes the usual arithmatic operators on integers, and $>, ==$ denotes the comparison-operators of \emph{greater-than} and \emph{equal-to} respectively. When interpreting a comparison-operator we will return 0 for \emph{false} and 1 for \emph{true}. Note that we have defined the language such that a program is simply one or more statements, and that every statement will return some value. In the case of an assign-statement, we simply return the value of the expression on the right hand side. 
