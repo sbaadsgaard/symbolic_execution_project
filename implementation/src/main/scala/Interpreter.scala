@@ -87,6 +87,7 @@ object Interpreter extends App {
           env
       }
 
+    //TODO maybe find a better name.
     def interpWhile(condExp: Expression, doStm: Statement, env: List[EnvEntry]): List[EnvEntry] = {
       def doWork(env: List[EnvEntry]): List[EnvEntry] = {
         val cond = interpExp(condExp, env)
@@ -126,7 +127,7 @@ object Interpreter extends App {
       }
 
     // TODO: perhaps find a better way to model the environment. Currently we simply pass around lists of entries.
-    //where the first occurence of a name dictates the newest value.
+    //where the first occurence of a name dictates the newest value. This growes quite fast in a while loop
     val env: List[EnvEntry] = List.empty[EnvEntry]
     interpStm(stm, env)
   }
@@ -150,6 +151,11 @@ object Interpreter extends App {
       AssignStm(Variable("b"), Integer(2)),
       ExpStm(Variable("b"))))
 
+  /*
+    b = 3
+    if b > 4 then b = 1 else b = 0
+    print b
+   */
   val testProg5 = SeqStm(
     SeqStm(
       AssignStm(Variable("b"), Integer(3)),
