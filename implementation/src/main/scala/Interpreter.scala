@@ -44,6 +44,8 @@ object Interpreter extends App {
 
   case class WhileStm(cond: Expression, doStm: Statement) extends Statement
 
+  case class PrintStm(e: Expression) extends Statement
+
 
   /** ***********************************************************************/
 
@@ -55,7 +57,7 @@ object Interpreter extends App {
     * @param stm statement representing the program
     * @return the result of running the program.
     */
-  def interp(stm: Statement): Int = {
+  def interp(stm: Statement): List[EnvEntry] = {
 
     /**
       * One of two workhorses in the interpretation. used to recursively interpret Statements. calls interpExp whenever
@@ -65,27 +67,38 @@ object Interpreter extends App {
       * @param env the current version of the environment; A list entries which binds a value to a name.
       * @return the resulting value of the statement
       */
-    def interpStm(stm: Statement, env: List[EnvEntry]): (Int, List[EnvEntry]) =
+    def interpStm(stm: Statement, env: List[EnvEntry]): List[EnvEntry] =
       stm match {
-        case ExpStm(e) => {
+        case ExpStm(e) =>
+          interpExp(e, env)
+          env
+        case AssignStm(Variable(name), e) =>
           val v = interpExp(e, env)
-          (v, env)
-        }
-        case AssignStm(Variable(name), e) => {
-          val v = interpExp(e, env)
-          val newEnv = EnvEntry(name, v) :: env
-          (v, newEnv)
-        }
-        case SeqStm(s1, s2) => {
-          val (_, env1) = interpStm(s1, env)
-          interpStm(s2, env1)
-        }
-        case IfStm(cond, thenStm, elseStm) => {
+          EnvEntry(name, v) :: env
+        case SeqStm(s1, s2) =>
+          interpStm(s2, interpStm(s1, env))
+        case IfStm(cond, thenStm, elseStm) =>
           val v = interpExp(cond, env)
           if (v != 0) interpStm(thenStm, env) else interpStm(elseStm, env)
-        }
-        case WhileStm(cond, doStm) => throw new NotImplementedError("coming soon!")
+        case WhileStm(condExp, doStm) =>
+          interpWhile(condExp, doStm, env)
+        case PrintStm(e) =>
+          println(interpExp(e, env))
+          env
       }
+
+    def interpWhile(condExp: Expression, doStm: Statement, env: List[EnvEntry]): List[EnvEntry] = {
+      def doWork(env: List[EnvEntry]): List[EnvEntry] = {
+        val cond = interpExp(condExp, env)
+        if (cond != 0) {
+          doWork(interpStm(doStm, env))
+        } else {
+          env
+        }
+      }
+
+      doWork(env)
+    }
 
     /**
       * Second workhorse in the interpretation. Used to recursively interpret an expression.
@@ -101,7 +114,7 @@ object Interpreter extends App {
           val res = env.find(entry => entry.name == name)
           res match {
             case Some(entry) => entry.value
-            case None => throw new NoSuchElementException(s"can't find variable with name  ${name}")
+            case None => throw new NoSuchElementException(s"can't find variable with name  $name")
           }
         }
         case PlusOp(e1, e2) => interpExp(e1, env) + interpExp(e2, env)
@@ -115,8 +128,7 @@ object Interpreter extends App {
     // TODO: perhaps find a better way to model the environment. Currently we simply pass around lists of entries.
     //where the first occurence of a name dictates the newest value.
     val env: List[EnvEntry] = List.empty[EnvEntry]
-    val (res, _) = interpStm(stm, env)
-    res
+    interpStm(stm, env)
   }
 
   // 2 + 2
@@ -131,13 +143,45 @@ object Interpreter extends App {
 
   // b = 3
   // if b > 2 then b = 2 else b
+  //print b
   val testProg4 = SeqStm(
     AssignStm(Variable("b"), Integer(3)),
     IfStm(GtOp(Variable("b"), Integer(2)),
       AssignStm(Variable("b"), Integer(2)),
       ExpStm(Variable("b"))))
 
-  println(interp(testProg4))
+  val testProg5 = SeqStm(
+    SeqStm(
+      AssignStm(Variable("b"), Integer(3)),
+      IfStm(GtOp(Variable("b"), Integer(4)),
+        AssignStm(Variable("b"), Integer(1)),
+        AssignStm(Variable("b"), Integer(0)))
+    ),
+    PrintStm(Variable("b"))
+  )
+  /*
+   * a = 1
+   * i = 0
+   * while 10 > i do
+   *   a = a * 2
+   *   i = i + 1
+   * print a
+   */
+  val testProg6 = SeqStm(
+    SeqStm(
+      AssignStm(Variable("a"), Integer(1)),
+      AssignStm(Variable("i"), Integer(0))
+    ),
+    SeqStm(
+      WhileStm(GtOp(Integer(10), Variable("i")),
+        SeqStm(AssignStm(Variable("a"), MultOp(Variable("a"), Integer(2))),
+          AssignStm(Variable("i"), PlusOp(Variable("i"), Integer(1))))),
+      PrintStm(Variable("a"))
+    )
+  )
+
+  interp(testProg6)
+
 }
 
 
