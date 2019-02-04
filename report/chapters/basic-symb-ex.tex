@@ -29,8 +29,8 @@ We will describe the language formally, by the following Context Free Grammar:
 	\alt <stm> <stm>
 	\alt if <exp> then <stm> else <stm>
 	\alt while <exp> do <stm>
-	\alt 
+	\alt Print E
 	
 \end{grammar}
 
-where $+, *, -, /$ denotes the usual arithmatic operators on integers, and $>, ==$ denotes the comparison-operators of \emph{greater-than} and \emph{equal-to} respectively. When interpreting a comparison-operator we will return 0 for \emph{false} and 1 for \emph{true}. Note that we have defined the language such that a program is simply one or more statements, and that every statement will return some value. In the case of an assign-statement, we simply return the value of the expression on the right hand side. 
+where $+, *, -, /$ denotes the usual arithmatic operators on integers, and $>, ==$ denotes the comparison-operators of \emph{greater-than} and \emph{equal-to} respectively. When interpreting a comparison-operator we will return 0 for \emph{false} and 1 for \emph{true}. 
