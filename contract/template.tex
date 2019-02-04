@@ -31,7 +31,7 @@ Page \thepage/\pageref{LastPage}\\
 \bgroup\def\arraystretch{1.5}
 \begin{table}[h]
 \begin{tabular}{ll}
-\textbf{Advisor}     & Anders Møller    \\
+\textbf{Advisor}     & Magnus Madsen (Primary) \& Anders Møller    \\
 \textbf{Students}    & Søren Baadsgaard \\
 \textbf{Languages}   & English / Danish \\
 \textbf{Text tools}  & \LaTeX         \\
@@ -48,20 +48,27 @@ obtaining such input values. Instead of running programs using
 concrete values, it uses symbolic 
 expressions together with automated theorem proving tools. Within the last decade, a variant 
 called directed automated random testing, which combines concrete and symbolic execution, has 
-become widely used.
-The aim of t
-his project is to explore symbolic execution techniques. The work will consist of 
-reading and summarizing research papers, and in implementing a small prototype tool that 
-performs symbolic execution for a simple programming language.
+become widely used. In this project we will investigate these techniques, starting with classic symbolic execution and moving on to more modern approaches. We will review and discuss research papers within this field, and we will also be working on a small prototype tool to perform symbolic execution on a simple toy language that we design. 
 
+This gives the following tasks:
+
+\begin{itemize}
+	\item -1: Design a toy language for the prototype tool. And make a concrete interpreter for it. 
+	\item 0: Review the literature and summarize the ideas and techniques presented in them.
+	\item A: Implementation of basic symbolic execution in the prototype tool.
+	\item B: Extending the prototypes with other techniques, and possibly extend the toy language.
+	\item C: Discussion of the strengths and weaknesses of the different methods used. What are their strengths and limitations? 
+\end{itemize}
 \subsection*{Provisional Table of Contents}
 \begin{itemize}
     \item Abstract (10-20 lines)
     \item Section 1: Introduction (1-2 pages)
-    \item Section 2: Review of literature (4-8 pages)
-    \item Section 3: Description of Task A (4-8 pages)
-    \item Section 4: Description of Task B (4-8 pages)
-    \item Section 5: Description of Task C (4-8 pages)
+    \item Section 1a: Design of simple language to implement a prototype for (Task -1, 1-2 pages).
+    \item Section 2: Review of literature (Task 0, 4-8 pages)
+    \item Section 3: Basic symbolic execution of the toy language(Task A, 4-8 pages)
+    \item Section 4: extending the prototype with other methods(Such as those described in the DART paper). (Task B, 4-8 pages)
+    \item Section 5: Discussion of strength and weaknesses of different method.
+    What are the possibilities and limitations of these techniques? (Task C, 4-8 pages)
     \item Section 6: Comparison to other work and ideas for future work (2-4 pages)
     \item Section 7: Conclusion (1-2 pages)
     \item Acknowledgements (3-5 lines)
@@ -75,9 +82,10 @@ performs symbolic execution for a simple programming language.
 
 \paragraph{First week of February (15 hours)}~\\\noindent
 Planning of activities, including the production of the Bachelor's contract.
+Also making a first edition of the toy language, and interpreting this.
 
 \paragraph{Rest of February and first half of March (\timeest{3\times 15} hours)}~\\\noindent
-Read literature (one or more scientific papers) and make draft of Section 2 in Bachelor's report.
+Read the three given articles and review the ideas and methods that are presented in them. Make draft of Section 2 in Bachelor's report. Also do some initial work on task A.
 
 \paragraph{Rest of March and first week of April (\timeest{2\times 15+2\times 30} hours)}~\\\noindent
 Completion of task A and make draft of Section 3 in Bachelor's report.
