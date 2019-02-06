@@ -1,7 +1,4 @@
-import com.sun.net.httpserver.Authenticator.Failure
-
-import scala.collection.mutable
-import scala.util.Failure
+import scala.collection.immutable.HashMap
 
 /**
   * Simple interpreter for the language SImPL. We simply descent the AST.
@@ -49,15 +46,13 @@ object Interpreter extends App {
 
   /** ***********************************************************************/
 
-  case class EnvEntry(name: String, value: Int)
-
   /**
     * Entry method for interpreting a program. A program is simply a statement.
     *
     * @param stm statement representing the program
     * @return the result of running the program.
     */
-  def interp(stm: Statement): List[EnvEntry] = {
+  def interp(stm: Statement): HashMap[String, Int] = {
 
     /**
       * One of two workhorses in the interpretation. used to recursively interpret Statements. calls interpExp whenever
@@ -67,14 +62,14 @@ object Interpreter extends App {
       * @param env the current version of the environment; A list entries which binds a value to a name.
       * @return the resulting value of the statement
       */
-    def interpStm(stm: Statement, env: List[EnvEntry]): List[EnvEntry] =
+    def interpStm(stm: Statement, env: HashMap[String, Int]): HashMap[String, Int] =
       stm match {
         case ExpStm(e) =>
           interpExp(e, env)
           env
         case AssignStm(Variable(name), e) =>
           val v = interpExp(e, env)
-          EnvEntry(name, v) :: env
+          env updated (name, v)
         case SeqStm(s1, s2) =>
           interpStm(s2, interpStm(s1, env))
         case IfStm(cond, thenStm, elseStm) =>
@@ -88,8 +83,8 @@ object Interpreter extends App {
       }
 
     //TODO maybe find a better name.
-    def interpWhile(condExp: Expression, doStm: Statement, env: List[EnvEntry]): List[EnvEntry] = {
-      def doWork(env: List[EnvEntry]): List[EnvEntry] = {
+    def interpWhile(condExp: Expression, doStm: Statement, env: HashMap[String, Int]): HashMap[String, Int] = {
+      def doWork(env: HashMap[String, Int]): HashMap[String, Int] = {
         val cond = interpExp(condExp, env)
         if (cond != 0) {
           doWork(interpStm(doStm, env))
@@ -108,13 +103,13 @@ object Interpreter extends App {
       * @param env The current version of the environment; A list of entries which binds a value to a name.
       * @return the value of the expression.
       */
-    def interpExp(e: Expression, env: List[EnvEntry]): Int =
+    def interpExp(e: Expression, env: HashMap[String, Int]): Int =
       e match {
         case Integer(x) => x
         case Variable(name) => {
-          val res = env.find(entry => entry.name == name)
+          val res = env get name
           res match {
-            case Some(entry) => entry.value
+            case Some(value) => value
             case None => throw new NoSuchElementException(s"can't find variable with name  $name")
           }
         }
@@ -126,9 +121,7 @@ object Interpreter extends App {
         case EqOp(e1, e2) => if (interpExp(e1, env) == interpExp(e2, env)) 1 else 0
       }
 
-    // TODO: perhaps find a better way to model the environment. Currently we simply pass around lists of entries.
-    //where the first occurence of a name dictates the newest value. This growes quite fast in a while loop
-    val env: List[EnvEntry] = List.empty[EnvEntry]
+    val env: HashMap[String, Int] = new HashMap()
     interpStm(stm, env)
   }
 
