@@ -2,12 +2,9 @@
 \input{preamble.tex}
 \graphicspath{ {images/} }
 \newcommand{\simpl}{
-		\emph{SImPL}
+		\textbf{\emph{SImPL}}
 	}
-	
-\newcommand{\gramdef}{
-		::=
-	}
+
 
 % Title Page
 \title{
@@ -27,6 +24,7 @@
 \chapter{Introduction}
 	\input{chapters/introduction.tex}
 \chapter{Summary of theory}
+	\input{chapters/theory.tex}
 
 \chapter{Basic symbolic execution for the \emph{SImPL} language}
 	\input{chapters/basic-symb-ex.tex}
@@ -40,5 +38,8 @@
 \chapter{Source code}
 
 \chapter{Figures}
+
+\bibliographystyle{plainnat}
+\bibliography{mybib}
 
 \end{document}          

@@ -1,0 +1,44 @@
+In this chapter we will cover some of theory behind symbolic execution. We will start by describing what it means to \emph{symbolically execute} a program and how we deal with potential branching. We will also describe the connection between a symbolic execution of a program, and a concrete one. Furthermore we will relate this technique to alternatives such as formally proving correctness. 
+
+\section{Principles of symbolic execution }
+	in \cite{king76}, the author looks at a spectrum of ensuring that a program functions as expected. In one extreme we have program testing, where the programmer specifies a sample of input. The program is then run on this sample, and if the program runs as intended, the programmer can be sure that for this sample the program is correct. choosing a proper sample of inputs will then enable the programmer to have some level of confidence that the program runs correctly. But since most programs can take virtually an infinite number of different inputs, one can never be absolutely sure that the program is free of bugs. At the other end of the spectrum is formal program verification. 
+	This requires a proper mathematical specification of the program, and a proof procedure that will verify that this specification is correct w.r.t some formal requirements. 
+	This will give the programmer a complete confidence that the program is in fact correct. This comes at the cost of producing a proper and adequately strong specification, performing sound steps in the proof procedure as well as having a strong set of requirements. 
+	We find symbolic execution somewhere in the middle of this spectrum. While we do not build a formal specification and apply any sort of program verification, we do not restrict our self to specific samples of input. Instead, we try to test the program for whole classes of inputs (such as all integers that are a power of two), which is represented by symbolic values instead of actual ones.
+
+\subsection{symbolically executing a program}
+	
+	Symbolic execution is described in \cite{King76} by imagining a simple programming language which restricts all variables to signed integers. The language supports the usual arithmetic operations on these integers, as well as a conditional expression to decide whether a given value is $ \leq 0$. To execute such a program symbolically, we allow the variables to also take \emph{symbolic} values, where these symbols represent some signed integer. We also allow arithmetic operations on these symbols, and for variables to hold such expressions. This means variables in fact contains polynomials over the integers.
+	To illustrate this, we consider the following simple program, that takes parameters $a, b, c$ and computes the sum:
+	
+	\begin{verbatim}
+		Fun sum(a, b, c) {
+			var x = a + b
+			var y = b + c
+			var z = x + y - b
+			return z
+		}
+	\end{verbatim} 
+	
+	If we run this program on concrete inputs, say $a = 2, b = 3, c = 4$, we would get the following execution:
+	
+	\begin{enumerate} 
+		\item x = 2 + 3 $\Rightarrow$ y = 5
+		\item y = 3 + 4 $\Rightarrow$ y = 7
+		\item z = 5 + 7 - 3 $\Rightarrow$ z = 9
+		\item return 9
+	\end{enumerate}
+	
+	So we see that on the specific input $a = 2, b = 3, c = 4$, the program returns the correct value.
+	\\
+	Let us now run the program with symbols. Say that we the input the following symbolic values: $a = \alpha, b = \beta, c = \gamma$.
+	The execution would then look like:
+	
+	\begin{enumerate}
+		\item x = $\alpha + \beta$
+		\item y = $\beta  + \gamma$
+		\item z = $(\alpha + \beta) + (\beta + \gamma) - \beta$
+		\item return $\alpha + \beta + \gamma$
+	\end{enumerate}
+	
+	From this execution we can actually conclude that the program will return the correct result for any three integers that we give as input. 
