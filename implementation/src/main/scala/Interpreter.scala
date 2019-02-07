@@ -1,3 +1,5 @@
+import java.util.NoSuchElementException
+
 import scala.collection.immutable.HashMap
 
 /**
@@ -10,177 +12,209 @@ object Interpreter extends App {
     * We define the language here
     */
   //TODO perhaps try to split op binary operators.
+
   sealed trait Expression
 
-  case class Integer(x: Int) extends Expression
+  case class Nil() extends Expression
 
-  case class Variable(name: String) extends Expression
+  sealed trait BExpression extends Expression //Boolean Expression
 
-  case class PlusOp(e1: Expression, e2: Expression) extends Expression
+  case class Bool(v: Boolean) extends BExpression
 
-  case class MinusOp(e1: Expression, e2: Expression) extends Expression
+  case class BinBExp(e1: AExpression, e2: AExpression, op: BinBop) extends BExpression
 
-  case class MultOp(e1: Expression, e2: Expression) extends Expression
+  sealed trait BinBop
 
-  case class DivOp(e1: Expression, e2: Expression) extends Expression
+  case class GtOp() extends BinBop
 
-  case class GtOp(e1: Expression, e2: Expression) extends Expression
+  case class EqOp() extends BinBop
 
-  case class EqOp(e1: Expression, e2: Expression) extends Expression
+  sealed trait AExpression extends Expression // Arithmetic Expression
 
+  case class CExpression(id: Id, argVals: List[AExpression]) extends AExpression
+
+  case class Integer(x: Int) extends AExpression
+
+  case class Id(name: String) extends AExpression
+
+  case class BinAExp(e1: AExpression, e2: AExpression, op: BinAop) extends AExpression
+
+  sealed trait BinAop
+
+  case class Add() extends BinAop
+
+  case class Sub() extends BinAop
+
+  case class Mult() extends BinAop
+
+  case class Div() extends BinAop
 
   sealed trait Statement
 
   case class ExpStm(e: Expression) extends Statement
 
-  case class AssignStm(v: Variable, e: Expression) extends Statement
+  case class AssignStm(id: Id, valExp: AExpression) extends Statement
 
-  case class SeqStm(s1: Statement, s2: Statement) extends Statement
+  case class CompStm(s1: Statement, s2: Statement) extends Statement
 
-  case class IfStm(cond: Expression, thenStm: Statement, elseStm: Statement) extends Statement
+  case class IfStm(cond: BExpression, thenStm: Statement, elseStm: Statement) extends Statement
 
-  case class WhileStm(cond: Expression, doStm: Statement) extends Statement
+  case class WhileStm(cond: BExpression, bodyStm: Statement) extends Statement
 
-  case class PrintStm(e: Expression) extends Statement
+  case class FDecl(id: Id, args: List[Id], stm: Statement) extends Statement
 
+  case class Prog(funcs: HashMap[Id, FDecl])
 
-  /** ***********************************************************************/
+  def interpProg(p: Prog): Expression = {
 
-  /**
-    * Entry method for interpreting a program. A program is simply a statement.
-    *
-    * @param stm statement representing the program
-    * @return the result of running the program.
-    */
-  def interp(stm: Statement): HashMap[String, Int] = {
-
-    /**
-      * One of two workhorses in the interpretation. used to recursively interpret Statements. calls interpExp whenever
-      * an expression must be interpreted.
-      *
-      * @param stm the statement to be interpreted
-      * @param env the current version of the environment; A list entries which binds a value to a name.
-      * @return the resulting value of the statement
-      */
-    def interpStm(stm: Statement, env: HashMap[String, Int]): HashMap[String, Int] =
-      stm match {
-        case ExpStm(e) =>
-          interpExp(e, env)
-          env
-        case AssignStm(Variable(name), e) =>
-          val v = interpExp(e, env)
-          env updated (name, v)
-        case SeqStm(s1, s2) =>
-          interpStm(s2, interpStm(s1, env))
+    /*
+     * To interpret a statement we need the statement itself, a environment describing variables, and a prog containing
+     * the current function declarations.
+     */
+    def interpStm(statement: Interpreter.Statement, venv: HashMap[Id, Int], pr: Prog): (Expression, HashMap[Id, Int], Prog) = {
+      statement match {
+        case ExpStm(e) => interpExp(e, venv, pr)
+        case AssignStm(id, valExp) =>
+          val (v, _, _) = interpExp(valExp, venv, pr)
+          v match {
+            case Integer(i) => (Integer(i), venv.updated(id, i), pr)
+            case _ => throw new IllegalArgumentException("Can only assign Integers to variables")
+          }
+        case CompStm(s1, s2) =>
+          val (_, newEnv, newProg) = interpStm(s1, venv, pr)
+          interpStm(s2, newEnv, newProg)
         case IfStm(cond, thenStm, elseStm) =>
-          val v = interpExp(cond, env)
-          if (v != 0) interpStm(thenStm, env) else interpStm(elseStm, env)
-        case WhileStm(condExp, doStm) =>
-          interpWhile(condExp, doStm, env)
-        case PrintStm(e) =>
-          println(interpExp(e, env))
-          env
-      }
+          val (c, _, _) = interpExp(cond, venv, pr)
+          c match {
+            case Bool(v) => if (v) interpStm(thenStm, venv, pr) else interpStm(elseStm, venv, pr)
+            case _ => throw new IllegalArgumentException("malformed conditional expression")
+          }
+        case decl: FDecl =>
+          val newProg: Prog = Prog(p.funcs.updated(decl.id, decl))
+          (Nil(), venv, newProg)
 
-    //TODO maybe find a better name.
-    def interpWhile(condExp: Expression, doStm: Statement, env: HashMap[String, Int]): HashMap[String, Int] = {
-      def doWork(env: HashMap[String, Int]): HashMap[String, Int] = {
-        val cond = interpExp(condExp, env)
-        if (cond != 0) {
-          doWork(interpStm(doStm, env))
-        } else {
-          env
-        }
       }
+    }
 
-      doWork(env)
+    def interpExp(e: Expression, venv: HashMap[Id, Int], pr: Prog): (Expression, HashMap[Id, Int], Prog) = {
+      e match {
+        case bExp: BExpression => interpBexp(bExp, venv, pr)
+        case aExp: AExpression => interpAexp(aExp, venv, pr)
+        case Nil() => (Nil(), venv, pr)
+      }
+    }
+
+    def interpCall(e: CExpression, venv: HashMap[Id, Int], pr: Prog): (Expression, HashMap[Id, Int], Prog) = {
+      val decl = pr.funcs.get(e.id)
+      decl match {
+        case None => throw new NoSuchElementException(s"function ${e.id.name} not defined")
+        case Some(f) =>
+          val vals = e.argVals.map((exp: AExpression) => {
+            val (v, _, _) = interpAexp(exp, venv, pr)
+            v match {
+              case Integer(x) => x
+              case _ => throw new IllegalArgumentException("functions can only take integer arguments")
+            }
+          })
+          val argValPairs = f.args zip vals
+          val addTo = (m: HashMap[Id, Int], t: (Id, Int)) => m.updated(t._1, t._2)
+          val newEnv = argValPairs.foldLeft(venv)(addTo)
+          interpStm(f.stm, newEnv, pr)
+      }
+    }
+
+    def interpBexp(e: BExpression, venv: HashMap[Id, Int], pr: Prog): (Expression, HashMap[Id, Int], Prog) = {
+      e match {
+        case b: Bool => (b, venv, pr)
+        case bin: BinBExp => interpBinBExp(bin, venv, pr)
+      }
+    }
+
+    def interpAexp(e: AExpression, venv: HashMap[Id, Int], pr: Prog): (Expression, HashMap[Id, Int], Prog) = {
+      e match {
+        case i: Integer => (i, venv, pr)
+        case Id(name) =>
+          val v = venv.get(Id(name))
+          v match {
+            case None => throw new NoSuchElementException(s"variable $name not defined")
+            case Some(value) => (Integer(value), venv, pr)
+          }
+        case bin: BinAExp => interpBinAExp(bin, venv, pr)
+        case cExp: CExpression => interpCall(cExp, venv, pr)
+      }
+    }
+
+    def interpBinBExp(e: BinBExp, venv: HashMap[Id, Int], pr: Prog): (Expression, HashMap[Id, Int], Prog) = {
+      val (v1, _, _) = interpAexp(e.e1, venv, pr)
+      val (v2, _, _) = interpAexp(e.e2, venv, pr)
+      (v1, v2) match {
+        case (Integer(i), Integer(j)) =>
+          e.op match {
+            case GtOp() => (Bool(i > j), venv, pr)
+            case EqOp() => (Bool(i == j), venv, pr)
+          }
+        case _ => throw new IllegalArgumentException("Cannot compare other types than integers")
+      }
+    }
+
+    def interpBinAExp(e: BinAExp, venv: HashMap[Id, Int], pr: Prog): (Expression, HashMap[Id, Int], Prog) = {
+      val (v1, _, _) = interpAexp(e.e1, venv, pr)
+      val (v2, _, _) = interpAexp(e.e2, venv, pr)
+      (v1, v2) match {
+        case (Integer(i), Integer(j)) =>
+          e.op match {
+            case Add() => (Integer(i + j), venv, pr)
+            case Sub() => (Integer(i - j), venv, pr)
+            case Mult() => (Integer(i * j), venv, pr)
+            case Div() => (Integer(i / j), venv, pr)
+          }
+        case _ => throw new IllegalArgumentException("Cannot add other types than integers")
+      }
     }
 
     /**
-      * Second workhorse in the interpretation. Used to recursively interpret an expression.
-      *
-      * @param e   The expression to be interpreted.
-      * @param env The current version of the environment; A list of entries which binds a value to a name.
-      * @return the value of the expression.
+      * A program is a collection of functions, where main() is a function with no arguments, which will be the starting
+      * point of the execution.
       */
-    def interpExp(e: Expression, env: HashMap[String, Int]): Int =
-      e match {
-        case Integer(x) => x
-        case Variable(name) => {
-          val res = env get name
-          res match {
-            case Some(value) => value
-            case None => throw new NoSuchElementException(s"can't find variable with name  $name")
-          }
-        }
-        case PlusOp(e1, e2) => interpExp(e1, env) + interpExp(e2, env)
-        case MinusOp(e1, e2) => interpExp(e1, env) - interpExp(e2, env)
-        case MultOp(e1, e2) => interpExp(e1, env) * interpExp(e2, env)
-        case DivOp(e1, e2) => interpExp(e1, env) / interpExp(e2, env)
-        case GtOp(e1, e2) => if (interpExp(e1, env) > interpExp(e2, env)) 1 else 0
-        case EqOp(e1, e2) => if (interpExp(e1, env) == interpExp(e2, env)) 1 else 0
-      }
+    val mainFunc = p.funcs.get(Id("main"))
+    mainFunc match {
+      case None => throw new NoSuchElementException("Malformed program, missing main")
+      case Some(f) =>
+        val venv: HashMap[Id, Int] = new HashMap()
+        val (e, _, _) = interpStm(f.stm, venv, p)
+        e
 
-    val env: HashMap[String, Int] = new HashMap()
-    interpStm(stm, env)
+    }
   }
 
-  // 2 + 2
-  val testProg1 = ExpStm(PlusOp(Integer(2), Integer(10)))
-
-  // If 2 > 3 then 1 else 2
-  val testProg2 = IfStm(GtOp(Integer(2), Integer(3)), ExpStm(Integer(1)), ExpStm(Integer(2)))
-
-  // a = 11
-  // a
-  val testProg3 = SeqStm(AssignStm(Variable("a"), Integer(11)), ExpStm(Variable("a")))
-
-  // b = 3
-  // if b > 2 then b = 2 else b
-  //print b
-  val testProg4 = SeqStm(
-    AssignStm(Variable("b"), Integer(3)),
-    IfStm(GtOp(Variable("b"), Integer(2)),
-      AssignStm(Variable("b"), Integer(2)),
-      ExpStm(Variable("b"))))
+  val testProg = Prog(
+    HashMap(Id("main") -> FDecl(Id("main"),
+      List.empty[Id], IfStm(
+        BinBExp(Integer(511), Integer(8), GtOp()),
+        ExpStm(Integer(1)),
+        ExpStm(Integer(55))
+      ))))
 
   /*
-    b = 3
-    if b > 4 then b = 1 else b = 0
-    print b
+   * fun fib(n) = if (2 > n) n else fib(n-1) + fib(n-2)
+   * fib(12)
    */
-  val testProg5 = SeqStm(
-    SeqStm(
-      AssignStm(Variable("b"), Integer(3)),
-      IfStm(GtOp(Variable("b"), Integer(4)),
-        AssignStm(Variable("b"), Integer(1)),
-        AssignStm(Variable("b"), Integer(0)))
-    ),
-    PrintStm(Variable("b"))
-  )
-  /*
-   * a = 1
-   * i = 0
-   * while 10 > i do
-   *   a = a * 2
-   *   i = i + 1
-   * print a
-   */
-  val testProg6 = SeqStm(
-    SeqStm(
-      AssignStm(Variable("a"), Integer(1)),
-      AssignStm(Variable("i"), Integer(0))
-    ),
-    SeqStm(
-      WhileStm(GtOp(Integer(10), Variable("i")),
-        SeqStm(AssignStm(Variable("a"), MultOp(Variable("a"), Integer(2))),
-          AssignStm(Variable("i"), PlusOp(Variable("i"), Integer(1))))),
-      PrintStm(Variable("a"))
-    )
-  )
+  val testProg1 = Prog(HashMap(Id("main") -> FDecl(Id("main"), List.empty[Id], CompStm(
+    FDecl(Id("fib"),
+      List(Id("n")),
+      IfStm(BinBExp(Integer(2), Id("n"), GtOp()), ExpStm(Id("n")), ExpStm(
+        BinAExp(
+          CExpression(Id("fib"), List(BinAExp(Id("n"), Integer(1), Sub()))),
+          CExpression(Id("fib"), List(BinAExp(Id("n"), Integer(2), Sub()))),
+          Add()
+        )))),
+    ExpStm(CExpression(Id("fib"), List(Integer(12))))
+  ))))
 
-  interp(testProg6)
-
+  val res = interpProg(testProg1)
+  println(s"result was: ${res.toString}")
 }
+
+
 
 
