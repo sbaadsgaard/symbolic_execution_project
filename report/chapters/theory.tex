@@ -8,7 +8,7 @@ In this chapter we will cover some of theory behind symbolic execution. We will 
 
 \subsection{symbolically executing a program}
 	
-	Symbolic execution is described in \cite{King76} by imagining a simple programming language which restricts all variables to signed integers. The language supports the usual arithmetic operations on these integers, as well as a conditional expression to decide whether a given value is $ \leq 0$. To execute such a program symbolically, we allow the variables to also take \emph{symbolic} values, where these symbols represent some signed integer. We also allow arithmetic operations on these symbols, and for variables to hold such expressions. This means variables in fact contains polynomials over the integers.
+	Symbolic execution is described in \cite{king76} by imagining a simple programming language which restricts all variables to signed integers. The language supports the usual arithmetic operations on these integers, as well as a conditional expression to decide whether a given value is $ \leq 0$. To execute such a program symbolically, we allow the variables to also take \emph{symbolic} values, where these symbols represent some signed integer. We also allow arithmetic operations on these symbols, and for variables to hold such expressions. This means variables in fact contains polynomials over the integers.
 	To illustrate this, we consider the following simple program, that takes parameters $a, b, c$ and computes the sum:
 	
 	\begin{verbatim}
@@ -42,3 +42,58 @@ In this chapter we will cover some of theory behind symbolic execution. We will 
 	\end{enumerate}
 	
 	From this execution we can actually conclude that the program will return the correct result for any three integers that we give as input. 
+	
+	\subsection{Handling branching in a program}
+		In the previous section we gave an example of a symbolic execution of a simple program that computes the sum of three integers. The program is an extremely simple case, in which the program will behave exactly the same for any possible input values. In reality however, most program languages have some way of allowing branching to happen, and with this feature, we cannot guarantee that the program will behave exactly the same for all inputs. If our program contains an expression like \emph{If $x > 2$ Then ... Else ... }, the program will behave differently depending on whether or nor $x > 2$. To encapsulate this, we introduce a \emph{path-constraint (PC)}, which is a boolean expression that will contain all properties that the input must satisfy to follow the given path. At the beginning of the execution, the $PC$ will be initialized with the value $true$ as no assumptions have been made yet (If we introduce pre-conditions on the input, the $PC$ will of course contain these). 
+		At any \emph{if-expression} with condition $q$, during the execution we will look at the following to expressions
+		
+		\begin{enumerate}
+			\item $ PC \supset q$
+			\item $ PC \supset \neg q$
+		\end{enumerate}
+		
+		where expression 1 tells us that $q$ is contained in the $PC$, and expression 2 tells us that the opposite of $q$ is contained in the $PC$. It is clear that at most one of these expressions can be true at any given time, which leaves us with three possible outcomes. If expression 1 holds, we simply follow the then-branch, and if expression 2 holds, we follow the else branch. In both these outcomes, $PC$ is not updated since it already contains the property that leads to the given branch that was chosen. The third outcome happens when neither expression holds. At this point we cannot simply follow one of the branches, so we must fork our execution into two parallel executions, one where we assume that $q$ holds and one where we assume $\neg q$ holds. This will produce two new $PCs$, namely 
+		
+		\begin{align*}
+			PC' & \gets PC \land q \\
+			PC''  & \gets PC \land \neg q
+		\end{align*}
+		
+		and from here we will have two seperate executions, one with $PC'$ that will follow the then-branch, and one with $PC''$ that will follow the else-branch. 
+		It is important to note that the $PC$ can never become identically $false$. To see this we first note that $PC$ will always start with the value $true$, and all other updates will be of the form $PC \gets PC \land r$ where 
+		$r \in \{q, \neg q\}$. But these updates only happen whenever we cannot infer $q$ or $\neg q$ from the existing value of $PC$ and it will only receive exactly of $q$ or $\neg q$. So it is never possible to have a state of $PC$ in which we have $ \ldots \land q \land \ldots \land \neg q \ldots$. 
+		
+		As in \cite{king76}, we can illustrate this with the following program that computes $a^b$.
+		
+		\begin{verbatim}
+			Fun pow(a, b) {
+			var r = 1
+			var i = 0
+			while (i < b) {
+				r = r*a
+				i = i + 1 
+			}
+			return r
+		\end{verbatim}
+		
+		If we assign $a = \alpha$ and $b = \beta$, we get the following execution:
+		
+		\begin{itemize}
+			\item PC is initialized to $true$
+			\item $r \gets 1$
+			\item $i \gets 0$
+			\item We hit a branching point, so we check if $true \supset (0 < \beta)$ or $true \supset \neg (0 < \beta)$. Since neither of these hold, we must fork:
+			\item \textbf{Case} $ \neg (0 < \beta) $: $PC \gets true \land \neg (0 < \beta) $.
+				The program returns $1$. So we can conclude that the program returns 1 when $\beta \leq 0$.
+			\item \textbf{Case} $ (0 < \beta)$: $PC \gets true \land (0 < \beta)$.
+			\subitem  $ r \gets 1 \cdot a$
+			\subitem  $ i \gets 0 + 1$
+			\item We hit a branching point again, so we check if $true \land (0 < \beta) \supset 1 < \beta$ or $true \land (0 < \beta) \supset \neg (1 < \beta)$. Since neither of these holds, we fork again:
+			\item \textbf{Case} $ \neg(1 < \beta)$: $PC \gets true \land (0 < \beta) \land \neg (1 < \beta)$. The program returns $\alpha$. So we can conclude that the program returns $\alpha$ when $ \beta = 1$.
+			\item \textbf{Case} $ 1 < \beta$: $PC \gets true \land (0 < \beta) \land (1 < \beta)$.
+			\subitem $r \gets a*a$
+			\subitem $i \gets 1 + 1$
+			\item We hit a branching point $\ldots$	
+		\end{itemize}
+		
+	\subsection{Symbolic execution trees}
