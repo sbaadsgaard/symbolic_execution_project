@@ -103,7 +103,12 @@ object Interpreter extends App {
         case Nil() => (Nil(), venv, pr)
       }
     }
-
+    /*
+     * We interpret call by first evaluation the expressions given as argument values, and then we add the function
+     * arguments to a new local environment, which is passed onto the interpretation of the function body.
+     * We return the old environment which does not contain the function arguments, nor any side effects from the body.
+     * Thus function calls does not have side effects.
+     */
     def interpCall(e: CExpression, venv: HashMap[Id, Int], pr: Prog): (Expression, HashMap[Id, Int], Prog) = {
       val decl = pr.funcs.get(e.id)
       decl match {
@@ -119,7 +124,8 @@ object Interpreter extends App {
           val argValPairs = f.args zip vals
           val addTo = (m: HashMap[Id, Int], t: (Id, Int)) => m.updated(t._1, t._2)
           val newEnv = argValPairs.foldLeft(venv)(addTo)
-          interpStm(f.stm, newEnv, pr)
+          val (res, _, _) =  interpStm(f.stm, newEnv, pr)
+          (res, venv, pr)
       }
     }
 
@@ -187,6 +193,15 @@ object Interpreter extends App {
     }
   }
 
+  /*
+   * Func to build a Prog from a statement. takes a stm, and returns a prog with a map from id main to func main with
+   * the given stm as body
+   */
+  def buildProg(stm: Statement): Prog = {
+    val m = HashMap(Id("main") -> FDecl(Id("main"), List.empty[Id], stm))
+    Prog(m)
+  }
+
   val testProg = Prog(
     HashMap(Id("main") -> FDecl(Id("main"),
       List.empty[Id], IfStm(
@@ -211,7 +226,47 @@ object Interpreter extends App {
     ExpStm(CExpression(Id("fib"), List(Integer(12))))
   ))))
 
-  val res = interpProg(testProg1)
+  /* Progam used to test that the function argument a does not escape the function scope.
+   * fun test(a) = 2*a
+   * test(a)
+   * a
+   *
+   * gives runtime error "a not found" as expected
+   */
+  val testProg2 = buildProg(
+    CompStm(
+      FDecl(Id("test"), List(Id("a")), ExpStm(
+        BinAExp(Integer(2), Id("a"), Mult()))),
+      CompStm(
+        ExpStm(CExpression(Id("test"), List(Integer(2)))),
+        ExpStm(Id("a"))
+      )
+    )
+  )
+
+  /*
+   * program used to test whether functions have side effect or not
+   * a = 6
+   * fun test() = {a = 3}
+   * test()
+   * a
+   *
+   * returns 6 as expected
+   */
+  val testProg3 = buildProg(
+    CompStm(
+      AssignStm(Id("a"), Integer(6)),
+      CompStm(
+        FDecl(Id("test"), List.empty[Id], AssignStm(Id("a"), Integer(3))),
+        CompStm(
+          ExpStm(CExpression(Id("test"), List.empty[AExpression])),
+          ExpStm(Id("a"))
+        )
+      )
+    )
+  )
+
+  val res = interpProg(testProg3)
   println(s"result was: ${res.toString}")
 }
 
