@@ -96,4 +96,17 @@ In this chapter we will cover some of theory behind symbolic execution. We will 
 			\item We hit a branching point $\ldots$	
 		\end{itemize}
 		
-	\subsection{Symbolic execution trees}
+		%TODO Find better titles for sections 
+		\subsection{Limitations due to infinite execution trees}
+			As demonstrated in the last example in the previous sections, a symbolic execution can easily become infinite as soon as we introduce branching and some looping structure. This is further illustrated if we consider an execution tree for a program. In \cite{king76}, they are describes by enumerating each statement, and let each node in the tree, correspond to an execution of one of the command. The edges going out from a node corresponds to the transition from one statement to the next. From this we can see that non forking statements will only have a single edge outgoing, while forking statements will have two. The forking edges will then correspond to splitting up the execution and following a different path, with a different \emph{path-constraint}. As an example, we can look at the execution tree for the program \emph{pow}, that computes $a^b$. 
+			
+			\Tree[.1 [.2 [.3 [.4 [.5 [.6 [.3 [.4 [.5 [.6 [.3 [.$\vdots$ ] [.{7: return $\alpha^2$ when $\beta = 2$  }
+			] ] ]  ] ] [.{7: return $\alpha$ when $\beta = 1$} ]  ]  ] ] ] [.{7: return 1 when $\beta <= 0$ } ] ]  ]  ] 
+							
+		
+			As we can see, this tree is infinite, since $b = \beta$ and $\beta$ can be arbitrarily large. In this case, our symbolic execution would run forever if we insisted on exhaustively exploring all possible paths. This illustrates one of the limitations of symbolic execution. For programs with infinite execution trees, we simply cannot exhaust all possible inputs, so we have to restrict our testing to exploring only a finite number of paths. 
+			\\ 
+			For each branch that we do explore however, we will know the behavior of any input that satisfies the \emph{path-constraint} which is still a large number of test runs, resolved with a single execution. An important point here, is that since the \emph{path-constraint} can never become identically false, there must exist input that would follow exactly that path. For this reason there exists a commutative property between the symbolic values, and concrete values that satisfy the particular \emph{path-constraint}. We get the same result if we simply run the program on these concrete values, or if we run it symbolically, and then substitute the symbolic values with concrete values. For this reason, we should be able to always ask for a set of concrete values that will follow the same path as our symbolic execution. This, way we can generate test cases that represents a potentially infinite class of input values. 
+			
+			
+			(Maybe write something about induction over trees, and finite trees allowing for exhaustive search)
