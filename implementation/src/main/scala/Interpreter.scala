@@ -61,61 +61,81 @@ object Interpreter extends App {
 
   case class WhileStm(cond: BExpression, bodyStm: Statement) extends Statement
 
-  case class FDecl(id: Id, args: List[Id], stm: Statement) extends Statement
+  case class FDecl(id: Id, args: List[Id], fbody: Statement)
 
-  case class Prog(funcs: HashMap[Id, FDecl])
+  /*
+   * A program consist of zero or more top level function declarations, followed by 1 or more statements starting with
+   * @stm
+   */
+  case class Prog(funcs: HashMap[Id, FDecl], stm: Statement)
+
 
   def interpProg(p: Prog): Expression = {
 
     /*
-     * To interpret a statement we need the statement itself, a environment describing variables, and a prog containing
-     * the current function declarations.
+      We interpret a statement in the current environment @venv and return a possibly updated environment
      */
-    def interpStm(statement: Interpreter.Statement, venv: HashMap[Id, Int], pr: Prog): (Expression, HashMap[Id, Int], Prog) = {
+    def interpStm(statement: Interpreter.Statement, venv: HashMap[Id, Int]): (Expression, HashMap[Id, Int]) = {
       statement match {
-        case ExpStm(e) => interpExp(e, venv, pr)
+        case ExpStm(e) => (interpExp(e, venv), venv)
         case AssignStm(id, valExp) =>
-          val (v, _, _) = interpExp(valExp, venv, pr)
+          val v = interpExp(valExp, venv)
           v match {
-            case Integer(i) => (Integer(i), venv.updated(id, i), pr)
+            case Integer(i) => (Integer(i), venv.updated(id, i))
             case _ => throw new IllegalArgumentException("Can only assign Integers to variables")
           }
         case CompStm(s1, s2) =>
-          val (_, newEnv, newProg) = interpStm(s1, venv, pr)
-          interpStm(s2, newEnv, newProg)
+          val (_, newEnv) = interpStm(s1, venv)
+          interpStm(s2, newEnv)
         case IfStm(cond, thenStm, elseStm) =>
-          val (c, _, _) = interpExp(cond, venv, pr)
+          val c = interpExp(cond, venv)
           c match {
-            case Bool(v) => if (v) interpStm(thenStm, venv, pr) else interpStm(elseStm, venv, pr)
+            case Bool(v) => if (v) interpStm(thenStm, venv) else interpStm(elseStm, venv)
             case _ => throw new IllegalArgumentException("malformed conditional expression")
           }
-        case decl: FDecl =>
-          val newProg: Prog = Prog(p.funcs.updated(decl.id, decl))
-          (Nil(), venv, newProg)
-
+        case WhileStm(cond, stm) => {
+          interpWhile(cond, stm, venv)
+        }
       }
     }
 
-    def interpExp(e: Expression, venv: HashMap[Id, Int], pr: Prog): (Expression, HashMap[Id, Int], Prog) = {
+    def interpWhile(cond: BExpression, stm: Statement, venv: HashMap[Id, Int]): (Expression, HashMap[Id, Int]) = {
+
+      def dowork(venv: HashMap[Id, Int]): HashMap[Id, Int] = {
+        val v = interpBexp(cond, venv)
+        v match {
+          case Bool(b) =>
+            if (b) {
+              val (_, newEnv) = interpStm(stm, venv)
+              dowork(newEnv)
+            }
+            else venv
+          case _ => throw new IllegalArgumentException("malformed conditional expression")
+        }
+      }
+
+      (Nil(), dowork(venv))
+    }
+
+    def interpExp(e: Expression, venv: HashMap[Id, Int]): Expression = {
       e match {
-        case bExp: BExpression => interpBexp(bExp, venv, pr)
-        case aExp: AExpression => interpAexp(aExp, venv, pr)
-        case Nil() => (Nil(), venv, pr)
+        case bExp: BExpression => interpBexp(bExp, venv)
+        case aExp: AExpression => interpAexp(aExp, venv)
+        case Nil() => Nil()
       }
     }
+
     /*
      * We interpret call by first evaluation the expressions given as argument values, and then we add the function
      * arguments to a new local environment, which is passed onto the interpretation of the function body.
-     * We return the old environment which does not contain the function arguments, nor any side effects from the body.
-     * Thus function calls does not have side effects.
      */
-    def interpCall(e: CExpression, venv: HashMap[Id, Int], pr: Prog): (Expression, HashMap[Id, Int], Prog) = {
-      val decl = pr.funcs.get(e.id)
+    def interpCall(e: CExpression, venv: HashMap[Id, Int]): Expression = {
+      val decl = p.funcs.get(e.id)
       decl match {
         case None => throw new NoSuchElementException(s"function ${e.id.name} not defined")
         case Some(f) =>
           val vals = e.argVals.map((exp: AExpression) => {
-            val (v, _, _) = interpAexp(exp, venv, pr)
+            val v = interpAexp(exp, venv)
             v match {
               case Integer(x) => x
               case _ => throw new IllegalArgumentException("functions can only take integer arguments")
@@ -124,146 +144,158 @@ object Interpreter extends App {
           val argValPairs = f.args zip vals
           val addTo = (m: HashMap[Id, Int], t: (Id, Int)) => m.updated(t._1, t._2)
           val newEnv = argValPairs.foldLeft(venv)(addTo)
-          val (res, _, _) =  interpStm(f.stm, newEnv, pr)
-          (res, venv, pr)
+          val (res, _) = interpStm(f.fbody, newEnv)
+          res
       }
     }
 
-    def interpBexp(e: BExpression, venv: HashMap[Id, Int], pr: Prog): (Expression, HashMap[Id, Int], Prog) = {
+    def interpBexp(e: BExpression, venv: HashMap[Id, Int]): Expression = {
       e match {
-        case b: Bool => (b, venv, pr)
-        case bin: BinBExp => interpBinBExp(bin, venv, pr)
+        case b: Bool => b
+        case bin: BinBExp => interpBinBExp(bin, venv)
       }
     }
 
-    def interpAexp(e: AExpression, venv: HashMap[Id, Int], pr: Prog): (Expression, HashMap[Id, Int], Prog) = {
+    def interpAexp(e: AExpression, venv: HashMap[Id, Int]): Expression = {
       e match {
-        case i: Integer => (i, venv, pr)
+        case i: Integer => i
         case Id(name) =>
           val v = venv.get(Id(name))
           v match {
             case None => throw new NoSuchElementException(s"variable $name not defined")
-            case Some(value) => (Integer(value), venv, pr)
+            case Some(value) => Integer(value)
           }
-        case bin: BinAExp => interpBinAExp(bin, venv, pr)
-        case cExp: CExpression => interpCall(cExp, venv, pr)
+        case bin: BinAExp => interpBinAExp(bin, venv)
+        case cExp: CExpression => interpCall(cExp, venv)
       }
     }
 
-    def interpBinBExp(e: BinBExp, venv: HashMap[Id, Int], pr: Prog): (Expression, HashMap[Id, Int], Prog) = {
-      val (v1, _, _) = interpAexp(e.e1, venv, pr)
-      val (v2, _, _) = interpAexp(e.e2, venv, pr)
+    def interpBinBExp(e: BinBExp, venv: HashMap[Id, Int]): Expression = {
+      val v1 = interpAexp(e.e1, venv)
+      val v2 = interpAexp(e.e2, venv)
       (v1, v2) match {
         case (Integer(i), Integer(j)) =>
           e.op match {
-            case GtOp() => (Bool(i > j), venv, pr)
-            case EqOp() => (Bool(i == j), venv, pr)
+            case GtOp() => Bool(i > j)
+            case EqOp() => Bool(i == j)
           }
         case _ => throw new IllegalArgumentException("Cannot compare other types than integers")
       }
     }
 
-    def interpBinAExp(e: BinAExp, venv: HashMap[Id, Int], pr: Prog): (Expression, HashMap[Id, Int], Prog) = {
-      val (v1, _, _) = interpAexp(e.e1, venv, pr)
-      val (v2, _, _) = interpAexp(e.e2, venv, pr)
+    def interpBinAExp(e: BinAExp, venv: HashMap[Id, Int]): Expression = {
+      val v1 = interpAexp(e.e1, venv)
+      val v2 = interpAexp(e.e2, venv)
       (v1, v2) match {
         case (Integer(i), Integer(j)) =>
           e.op match {
-            case Add() => (Integer(i + j), venv, pr)
-            case Sub() => (Integer(i - j), venv, pr)
-            case Mult() => (Integer(i * j), venv, pr)
-            case Div() => (Integer(i / j), venv, pr)
+            case Add() => Integer(i + j)
+            case Sub() => Integer(i - j)
+            case Mult() => Integer(i * j)
+            case Div() => Integer(i / j)
           }
         case _ => throw new IllegalArgumentException("Cannot add other types than integers")
       }
     }
 
-    /**
-      * A program is a collection of functions, where main() is a function with no arguments, which will be the starting
-      * point of the execution.
-      */
-    val mainFunc = p.funcs.get(Id("main"))
-    mainFunc match {
-      case None => throw new NoSuchElementException("Malformed program, missing main")
-      case Some(f) =>
-        val venv: HashMap[Id, Int] = new HashMap()
-        val (e, _, _) = interpStm(f.stm, venv, p)
-        e
-
-    }
+    val env: HashMap[Id, Int] = HashMap()
+    val (v, _) = interpStm(p.stm, env)
+    v
   }
 
   /*
    * Func to build a Prog from a statement. takes a stm, and returns a prog with a map from id main to func main with
    * the given stm as body
    */
-  def buildProg(stm: Statement): Prog = {
-    val m = HashMap(Id("main") -> FDecl(Id("main"), List.empty[Id], stm))
-    Prog(m)
-  }
-
-  val testProg = Prog(
-    HashMap(Id("main") -> FDecl(Id("main"),
-      List.empty[Id], IfStm(
-        BinBExp(Integer(511), Integer(8), GtOp()),
-        ExpStm(Integer(1)),
-        ExpStm(Integer(55))
-      ))))
 
   /*
    * fun fib(n) = if (2 > n) n else fib(n-1) + fib(n-2)
    * fib(12)
    */
-  val testProg1 = Prog(HashMap(Id("main") -> FDecl(Id("main"), List.empty[Id], CompStm(
-    FDecl(Id("fib"),
-      List(Id("n")),
-      IfStm(BinBExp(Integer(2), Id("n"), GtOp()), ExpStm(Id("n")), ExpStm(
-        BinAExp(
-          CExpression(Id("fib"), List(BinAExp(Id("n"), Integer(1), Sub()))),
-          CExpression(Id("fib"), List(BinAExp(Id("n"), Integer(2), Sub()))),
-          Add()
-        )))),
-    ExpStm(CExpression(Id("fib"), List(Integer(12))))
-  ))))
 
-  /* Progam used to test that the function argument a does not escape the function scope.
-   * fun test(a) = 2*a
-   * test(a)
-   * a
-   *
-   * gives runtime error "a not found" as expected
+  val testProg = Prog(
+    HashMap(Id("fib") -> FDecl(Id("fib"), List(Id("n")),
+      IfStm(
+        BinBExp(Integer(2), Id("n"), GtOp()),
+        ExpStm(Id("n")),
+        ExpStm(
+          BinAExp(
+            CExpression(Id("fib"), List(BinAExp(Id("n"), Integer(1), Sub()))),
+            CExpression(Id("fib"), List(BinAExp(Id("n"), Integer(2), Sub()))),
+            Add()
+          )
+        )
+      ))),
+    ExpStm(
+      CExpression(Id("fib"), List(Integer(12)))
+    ))
+
+  /*
+   * Test to ensure that locally defined variables does not escape function scope
    */
-  val testProg2 = buildProg(
+  val testProg1 = Prog(HashMap(Id("test") -> FDecl(Id("test"), List(Id("a")),
+    ExpStm(Id("a")))),
     CompStm(
-      FDecl(Id("test"), List(Id("a")), ExpStm(
-        BinAExp(Integer(2), Id("a"), Mult()))),
+      ExpStm(
+        CExpression(Id("test"), List(Integer(42)))
+      ),
+      ExpStm(Id("a"))
+    )
+  )
+
+  /*
+   * Test to ensure that mutations of global variables only exists in the function scope
+   */
+
+  val testProg2 = Prog(HashMap(Id("test") -> FDecl(Id("test"), List.empty[Id],
+    AssignStm(Id("x"), Integer(3)))),
+    CompStm(
+      AssignStm(Id("x"), Integer(1)),
       CompStm(
-        ExpStm(CExpression(Id("test"), List(Integer(2)))),
-        ExpStm(Id("a"))
+        ExpStm(CExpression(Id("test"), List.empty[AExpression])),
+        ExpStm(Id("x"))
       )
     )
   )
 
   /*
-   * program used to test whether functions have side effect or not
-   * a = 6
-   * fun test() = {a = 3}
-   * test()
-   * a
+   * fun pow(a, b) {
+   *  res = 1
+   *  i = 0
+   *  while (b > i) do
+   *    res = res*a
+   *    i = 1 + 1
+   *  res
+   * }
    *
-   * returns 6 as expected
+   * pow(2,3)
    */
-  val testProg3 = buildProg(
+
+  val testProg3 = Prog(HashMap(Id("pow") -> FDecl(Id("pow"), List(Id("a"), Id("b")),
     CompStm(
-      AssignStm(Id("a"), Integer(6)),
+      AssignStm(Id("res"), Integer(1)),
       CompStm(
-        FDecl(Id("test"), List.empty[Id], AssignStm(Id("a"), Integer(3))),
+        AssignStm(Id("i"), Integer(0)),
         CompStm(
-          ExpStm(CExpression(Id("test"), List.empty[AExpression])),
-          ExpStm(Id("a"))
+          WhileStm(
+            BinBExp(Id("b"), Id("i"), GtOp()),
+            CompStm(
+              AssignStm(
+                Id("res"),
+                BinAExp(Id("res"), Id("a"), Mult())
+              ),
+              AssignStm(
+                Id("i"),
+                BinAExp(Id("i"), Integer(1), Add())
+              )
+            )
+          ),
+          ExpStm(Id("res"))
         )
       )
     )
+  )),
+    ExpStm(CExpression(Id("pow"), List(Integer(3), Integer(5))))
   )
 
   val res = interpProg(testProg3)
