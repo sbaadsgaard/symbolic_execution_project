@@ -16,26 +16,78 @@ We will describe the language formally, by the following Context Free Grammar:
 \begin{grammar}
 	<int> ::= 0 | 1 | -1 | 2 | -2 | $\ldots$
 	
-	<var> ::= a | b | c | $\ldots$ 
+	<Id> ::= a | b | c | $\ldots$ 
 	
-	<exp> ::= <int>
-	\alt <var>
-	\alt <exp> $+$ <exp> | <exp> $-$ <exp> | <exp> $*$ <exp> | <exp> $/$ <exp>
-	\alt <exp> $>$ <exp> | <exp> $==$ <exp> 	
+	<exp> ::= <aexp> | <bexp> | <nil>
+	
+	<nil> ::= ()
+	
+	<bexp> ::= True | False
+	\alt <aexp> $>$ <aexp>
+	\alt <aexp> $==$ <aexp>
+	
+	<aexp> ::= <int> | <id>
+	\alt <aexp> + <aexp> | <aexp> - <aexp> 
+	\alt <aexp> $\cdot$ <aexp> | <aexp> / <aexp>
+	\alt <cexp>
+	
+	<cexp> ::= <Id> (<aexp>*) \text{ \# Call expression}
 	
 	<stm> ::= <exp>
-	\alt <var> = <exp>
+	\alt <Id> = <exp>
 	\alt <stm> <stm>
 	\alt if <exp> then <stm> else <stm>
 	\alt while <exp> do <stm>
-	\alt Print E
 	
-	<prog> ::= <stm>
+	<fdecl> ::= <Id> (<Id>*) {<fbody>}
+	
+	<fbody> ::= <stm>
+	\alt <fdecl> <fbody>
+	
+	<prog> ::= <fdecl>* <stm>
 	
 \end{grammar}
 
-where $+, *, -, /$ denotes the usual arithmatic operators on integers, and $>, ==$ denotes the comparison-operators of \emph{greater-than} and \emph{equal-to} respectively. When interpreting a comparison-operator we will return 0 for \emph{false} and 1 for \emph{true}. Finally we see that a program $\langle prog \rangle$ is simply a sequence of one or more statements.
+\subsubsection{Expressions}
+expressions comes in three different types, arithmetic, boolean and a $nil$ expressions.
+
+\textbf{arithmetic expressions} consists of integers, variables referencing integers, or the usual binary operations on these two. We also consider function calls an arithmetic expression, but assigning anything other than integers to a variable will result in a runtime error. 
+\textbf{boolean expressions} consists of the boolean values $true$ and $false$, as well as comparisons of arithmetic expressions. 
+
+\textbf{nil}
+  nil expression is a special case which is only returned from \emph{while} statements. 
+
+\subsubsection{Statements}
+Statements consists of assigning integer values to variables, \emph{if-then-else} statements for branching and a \emph{while-do} statement for looping. Finally a statement can simply an expression, as well as a compound statement to allow for more than one statement to be executed.
+
+\subsubsection{Function declarations}
+
+Function declarations consists of an identifier, followed by a list of zero or more identifiers for parameters, and finally a function body which is simply a statement. Functions does not have any side effects, so any variables declared in the function body will be considered local. Furthermore, any mutations of globally defined variables will only exist in the scope of that particular function.
+
+\iffalse
+
+where $+, *, -, /$ denotes the usual arithmatic operators on integers, and $>, ==$ denotes the comparison-operators of \emph{greater-than} and \emph{equal-to} respectively. We consider program to simply be a collection of function declarations. A function  Each program will start with a function \emph{main()} whose body will be the program to be executed. Furthermore function calls will not have any side effects, therefore any variable declarations inside a function will be considered local to that scope, and any mutations of variables in a outer scope, will only exist in the scope of that function. Statements will always return the value of the final operation performed, where \emph{assign-statements} return the value of the expression on the right hand side. There are two special cases, namely \emph{while} and-\emph{fdecl}-statements, which will return the value nil value which is simply the empty value. 
+
+\fi
+
+\subsubsection{programs}
+
+We consider a program to be zero of more top-level function declarations, as well a statement
 
 \subsection{Interpreting \simpl}
 
-In order to work with \simpl, we have build a simple interpreter using the \emph{Scala} programming language. We use a simple recursive strategy, where we recursively interpret statements from left to right, each time returning a potentially updated \emph{environment} containing bindings of variable names to integer values.  
+In order to work with \simpl, we have build a simple interpreter using the \emph{Scala} programming language.
+
+ We represent our environment as a map 
+\begin{equation}
+	env: \langle Id \rangle   \rightarrow \mathbb{N}
+\end{equation}
+and each time we interpret a statement we return an instance of this map that reflects the current state of the environment. Note that we restrict both variables and function arguments to integer values. 
+
+A program is represented as an object $Prog$ which carries a map
+
+\begin{equation*}
+	funcs: \langle Id \rangle \rightarrow \langle fdecl \rangle
+\end{equation*}
+
+of top-level function declarations, as well as a root statement. To interpret the program we simply traverse the tree starting with the root statement. Interpreting function calls consists of looking up the function in the $Prog$ object, add the function parameters to the environment and then interpreting the statement in the function body. In order to keep functions from having side effects, we simply return the original environment as it was before adding function parameters and interpreting the body. 
