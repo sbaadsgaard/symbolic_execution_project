@@ -4,10 +4,9 @@ In this chapter we will describe the process of implementing symbolic execution 
 
 \section{Introducing the \simpl language}
 
-\simpl\textbf{(Simple Imperative Programming Language)} is a small imperative programming language, designed to highlight the interesting use cases of symbolic execution. The language supports only one type, namely the set integers $\mathbb{N}$.
-Furthermore we will interpret 0 as \emph{false} and any other integer as \emph{true}.
+\simpl\textbf{(Simple Imperative Programming Language)} is a small imperative programming language, designed to highlight the interesting use cases of symbolic execution. The language supports two types, namely the set integers $\mathbb{N}$ and the boolean values $true$ and $false$.
  \simpl supports basic
- variables that can be assigned the value of any expression, as well as basic branching functionality through an \textbf{If} - \textbf{Then} - \textbf{Else} statement. Furthermore it allows for looping through a \textbf{While} - \textbf{Do} statement.
+ variables that can be assigned integer values, as well as basic branching functionality through an \textbf{If} - \textbf{Then} - \textbf{Else} statement. Furthermore it allows for looping through a \textbf{While} - \textbf{Do} statement. It also supports top-level functions and the use of recursion.
 
 We will describe the language formally, by the following Context Free Grammar:
 
@@ -34,7 +33,7 @@ We will describe the language formally, by the following Context Free Grammar:
 	<cexp> ::= <Id> (<aexp>*) \text{ \# Call expression}
 	
 	<stm> ::= <exp>
-	\alt <Id> = <exp>
+	\alt <Id> = <aexp>
 	\alt <stm> <stm>
 	\alt if <exp> then <stm> else <stm>
 	\alt while <exp> do <stm>
@@ -72,8 +71,7 @@ where $+, *, -, /$ denotes the usual arithmatic operators on integers, and $>, =
 
 \subsubsection{programs}
 
-We consider a program to be zero of more top-level function declarations, as well a statement
-
+We consider a program to be zero of more top-level function declarations, as well a statement. The statement will act as the starting point when executing a a program. 
 \subsection{Interpreting \simpl}
 
 In order to work with \simpl, we have build a simple interpreter using the \emph{Scala} programming language.
@@ -91,3 +89,27 @@ A program is represented as an object $Prog$ which carries a map
 \end{equation*}
 
 of top-level function declarations, as well as a root statement. To interpret the program we simply traverse the tree starting with the root statement. Interpreting function calls consists of looking up the function in the $Prog$ object, add the function parameters to the environment and then interpreting the statement in the function body. In order to keep functions from having side effects, we simply return the original environment as it was before adding function parameters and interpreting the body. 
+
+\subsection{Symbolic interpreter for \simpl}
+
+To be able to do symbolic execution of a program written in \simpl, we must extend our implementation to allow for symbolic values to exists. To do this we 
+will add an extra non-terminal to our grammar which will represent symbolic values. Our grammar will then look like 
+
+\begin{grammar}
+	<sym> ::= $\alpha$ | $\beta$ | $\gamma$ | $\ldots$
+	
+	<int> ::= 0 | 1 | $-1$ | $\ldots$
+	
+	\vdots
+	
+	<aexp> ::= <sym> | <int> | <id> | $\ldots$
+	
+	\vdots
+\end{grammar}
+
+Furthermore, we must extend the capabilities of our environment, so that it does not only map to Integer values, but instead to arbitrary expressions over integers and symbolic values. Furthermore we must extend the return type of functions as well. These too, will be allowed to return arbitrary expressions over integers and symbolic values. 
+
+\subsubsection{Representing the path constraint}
+
+Since the path constraint is simply a conjunction of expression on the form 
+$(\langle aexp \rangle op \langle aexp \rangle)$  with  $op \in \{ >, == \}$, we will simply represent the $PC$ as a list of such expressions. So if $PC = true \land e1 \land e1 \land \ldots \land e_n$, we will represent it as the list $L_{pc} = [true, e1, e2, \ldots, e_n]$

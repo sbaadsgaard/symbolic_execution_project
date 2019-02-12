@@ -1,24 +1,24 @@
-In this chapter we will cover some of theory behind symbolic execution. We will start by describing what it means to \emph{symbolically execute} a program and how we deal with potential branching. We will also describe the connection between a symbolic execution of a program, and a concrete one. Furthermore we will relate this technique to alternatives such as formally proving correctness. 
+In this chapter we will cover some of theory behind symbolic execution. We will start by describing what it means to \emph{symbolically execute} a program and how we deal with potential branching. We will also describe the connection between a symbolic execution of a program, and a concrete one. 
 
 \section{Principles of symbolic execution }
-	in \cite{king76}, the author looks at a spectrum of ensuring that a program functions as expected. In one extreme we have program testing, where the programmer specifies a sample of input. The program is then run on this sample, and if the program runs as intended, the programmer can be sure that for this sample the program is correct. choosing a proper sample of inputs will then enable the programmer to have some level of confidence that the program runs correctly. But since most programs can take virtually an infinite number of different inputs, one can never be absolutely sure that the program is free of bugs. At the other end of the spectrum is formal program verification. 
-	This requires a proper mathematical specification of the program, and a proof procedure that will verify that this specification is correct w.r.t some formal requirements. 
-	This will give the programmer a complete confidence that the program is in fact correct. This comes at the cost of producing a proper and adequately strong specification, performing sound steps in the proof procedure as well as having a strong set of requirements. 
-	We find symbolic execution somewhere in the middle of this spectrum. While we do not build a formal specification and apply any sort of program verification, we do not restrict our self to specific samples of input. Instead, we try to test the program for whole classes of inputs (such as all integers that are a power of two), which is represented by symbolic values instead of actual ones.
+	
+	In \cite{king76}, symbolic execution is described as a practical approach between simple program testing and program proving. At one extreme, program testing allows the programmer to get some level of confidence in the program, by running it on a well-selected sample of input values, but this sample size will be but a fraction of the possible input values. At the other extreme, program proving will give complete confidence in the programs correctness. To achieve this, one must provide a precise specification of correct behavior, as well as be able to perform perform formal proof steps to conclude that the program satisfies this specification. This is a challenging task, even for relatively simple programs. \emph{Symbolic execution} will serve as a practical middle ground between these two, in which we try to extend simple program testing to cover more general classes of inputs.  
 
 \subsection{symbolically executing a program}
 	
-	Symbolic execution is described in \cite{king76} by imagining a simple programming language which restricts all variables to signed integers. The language supports the usual arithmetic operations on these integers, as well as a conditional expression to decide whether a given value is $ \leq 0$. To execute such a program symbolically, we allow the variables to also take \emph{symbolic} values, where these symbols represent some signed integer. We also allow arithmetic operations on these symbols, and for variables to hold such expressions. This means variables in fact contains polynomials over the integers.
+	\cite{CadarSen13} describes symbolic execution as follows:
+	
+	Any input to the program will be replaced with \emph{symbolic} values instead of concrete ones. Any operations on the symbolic values, will result in expressions over these, so our program state can be describes as a map from variable names to expressions over the input values. This also means that any return value from the execution will be such an expression. In \cite{king76} an example is given of a program written in a simple language with only signed integer values and arithmetic operations on these. In a symbolic context, this will translate to a program that operates on polynomials with integer coefficients.   
+	
 	To illustrate this, we consider the following simple program, that takes parameters $a, b, c$ and computes the sum:
 	
-	\begin{verbatim}
-		Fun sum(a, b, c) {
-			var x = a + b
-			var y = b + c
-			var z = x + y - b
-			return z
-		}
-	\end{verbatim} 
+	\begin{lstlisting}
+	Fun sum(a, b, c) 
+		var x = a + b
+		var y = b + c
+		var z = x + y - b
+		return z
+	\end{lstlisting} 
 	
 	If we run this program on concrete inputs, say $a = 2, b = 3, c = 4$, we would get the following execution:
 	
@@ -48,33 +48,30 @@ In this chapter we will cover some of theory behind symbolic execution. We will 
 		At any \emph{if-expression} with condition $q$, during the execution we will look at the following to expressions
 		
 		\begin{enumerate}
-			\item $ PC \supset q$
-			\item $ PC \supset \neg q$
+			\item $ PC \land q$
+			\item $ PC \land \neg q$.
 		\end{enumerate}
 		
-		where expression 1 tells us that $q$ is contained in the $PC$, and expression 2 tells us that the opposite of $q$ is contained in the $PC$. It is clear that at most one of these expressions can be true at any given time, which leaves us with three possible outcomes. If expression 1 holds, we simply follow the then-branch, and if expression 2 holds, we follow the else branch. In both these outcomes, $PC$ is not updated since it already contains the property that leads to the given branch that was chosen. The third outcome happens when neither expression holds. At this point we cannot simply follow one of the branches, so we must fork our execution into two parallel executions, one where we assume that $q$ holds and one where we assume $\neg q$ holds. This will produce two new $PCs$, namely 
+		This gives a number of possible scenarios:
 		
-		\begin{align*}
-			PC' & \gets PC \land q \\
-			PC''  & \gets PC \land \neg q
-		\end{align*}
+		\begin{itemize}
+			\item \textbf{Only the first expression is satisfiable}: We will update $PC$ with $q$ so $PC \gets PC \land q$. Execution will continue by following the \emph{then}-branch.
+			\item \textbf{If only the second expression is satisfiable}: We will update $PC$ with $\neg q$ so $PC \gets PC \land \neg q$. Execution will continue by following the \emph{else}-branch.
+			\item \textbf{Both expressions are satisfiable}: In this case, the execution can follow both branches, so we \emph{fork} the program, by updating $PC$ with $PC \gets q$, and we make a copy of $PC$ and update this with $PC' gets \neg q$. This gives us two executions, one that follows the \emph{then}-branch with $PC$ and one that follows the \emph{else}-branch with $PC'$.  
+		\end{itemize}
 		
-		and from here we will have two seperate executions, one with $PC'$ that will follow the then-branch, and one with $PC''$ that will follow the else-branch. 
-		It is important to note that the $PC$ can never become identically $false$. To see this we first note that $PC$ will always start with the value $true$, and all other updates will be of the form $PC \gets PC \land r$ where 
-		$r \in \{q, \neg q\}$. But these updates only happen whenever we cannot infer $q$ or $\neg q$ from the existing value of $PC$ and it will only receive exactly of $q$ or $\neg q$. So it is never possible to have a state of $PC$ in which we have $ \ldots \land q \land \ldots \land \neg q \ldots$. 
+		We illustrate this with the following example:
 		
-		As in \cite{king76}, we can illustrate this with the following program that computes $a^b$.
+	\begin{lstlisting}
+	Fun pow(a, b) 
+		var r = 1
+		var i = 0
+		while (i < b) 
+			r = r*a
+			i = i + 1 
+		return r
 		
-		\begin{verbatim}
-			Fun pow(a, b) {
-			var r = 1
-			var i = 0
-			while (i < b) {
-				r = r*a
-				i = i + 1 
-			}
-			return r
-		\end{verbatim}
+		\end{lstlisting}
 		
 		If we assign $a = \alpha$ and $b = \beta$, we get the following execution:
 		
@@ -82,31 +79,36 @@ In this chapter we will cover some of theory behind symbolic execution. We will 
 			\item PC is initialized to $true$
 			\item $r \gets 1$
 			\item $i \gets 0$
-			\item We hit a branching point, so we check if $true \supset (0 < \beta)$ or $true \supset \neg (0 < \beta)$. Since neither of these hold, we must fork:
-			\item \textbf{Case} $ \neg (0 < \beta) $: $PC \gets true \land \neg (0 < \beta) $.
+			\item We hit a branching point, so we check if $true \land (0 < \beta)$ and $true \land \neg (0 < \beta)$ are satisfiable. Since they both are, we must fork:
+			\item \textbf{Case} $ \neg (0 < \beta) $: $PC' \gets true \land \neg (0 < \beta) $.
 				The program returns $1$. So we can conclude that the program returns 1 when $\beta \leq 0$.
 			\item \textbf{Case} $ (0 < \beta)$: $PC \gets true \land (0 < \beta)$.
 			\subitem  $ r \gets 1 \cdot a$
 			\subitem  $ i \gets 0 + 1$
-			\item We hit a branching point again, so we check if $true \land (0 < \beta) \supset 1 < \beta$ or $true \land (0 < \beta) \supset \neg (1 < \beta)$. Since neither of these holds, we fork again:
-			\item \textbf{Case} $ \neg(1 < \beta)$: $PC \gets true \land (0 < \beta) \land \neg (1 < \beta)$. The program returns $\alpha$. So we can conclude that the program returns $\alpha$ when $ \beta = 1$.
+			\item We hit a branching point again, so we check if $true \land (0 < \beta) \land (1 < \beta)$ and $true \land (0 < \beta) \land \neg (1 < \beta)$ are satisfiable. Since both they are, we fork again:
+			\item \textbf{Case} $ \neg(1 < \beta)$: $PC' \gets true \land (0 < \beta) \land \neg (1 < \beta)$. The program returns $\alpha$. So we can conclude that the program returns $\alpha$ when $ \beta = 1$.
 			\item \textbf{Case} $ 1 < \beta$: $PC \gets true \land (0 < \beta) \land (1 < \beta)$.
 			\subitem $r \gets a*a$
 			\subitem $i \gets 1 + 1$
 			\item We hit a branching point $\ldots$	
 		\end{itemize}
 		
+		An important property of the \emph{path-constraint} is that it can never become identically false. To see why this is the case, we have to look at the possible updates of $PC$. At the start of an execution, it will be initialized with the value $true$. At any branching point, it will be updated with exactly one of the expressions $PC \land q$ and $PC \land \neg q$, and only if the given expression is satisfiable. So $PC$ will never end up looking like $\ldots \land q \land \ldots \land \neg q \land \ldots $ for some condition $q$. What this means is that when the program terminates at the end of some execution path, $PC$ will be a satisfiable formula over the symbolic values, which means that we can solve the constraints and derive a set of concrete values which will follow the exact same path if we execute the program normally.   
+		
 		%TODO Find better titles for sections 
-		\subsection{Limitations due to infinite execution trees}
-			As demonstrated in the last example in the previous sections, a symbolic execution can easily become infinite as soon as we introduce branching and some looping structure. This is further illustrated if we consider an execution tree for a program. In \cite{king76}, they are describes by enumerating each statement, and let each node in the tree, correspond to an execution of one of the command. The edges going out from a node corresponds to the transition from one statement to the next. From this we can see that non forking statements will only have a single edge outgoing, while forking statements will have two. The forking edges will then correspond to splitting up the execution and following a different path, with a different \emph{path-constraint}. As an example, we can look at the execution tree for the program \emph{pow}, that computes $a^b$. 
+		\subsection{Limitations of symbolic execution}
+		
+		\subsubsection{Infinite execution trees}
+			As demonstrated in the last example in the previous sections, a symbolic execution can easily become infinite as soon as we introduce branching and some looping structure. This is further illustrated if we consider an execution tree for a program. In \cite{king76}, they are described by enumerating each statement, and let each node in the tree, correspond to an execution of one of the command. The edges going out from a node corresponds to the transition from one statement to the next. From this we can see that non forking statements will only have a single edge outgoing, while forking statements will have two. The forking edges will then correspond to splitting up the execution and following a different path, with a different \emph{path-constraint}. As an example, we can look at the execution tree for the program \emph{pow}, that computes $a^b$. 
 			
 			\Tree[.1 [.2 [.3 [.4 [.5 [.6 [.3 [.4 [.5 [.6 [.3 [.$\vdots$ ] [.{7: return $\alpha^2$ when $\beta = 2$  }
 			] ] ]  ] ] [.{7: return $\alpha$ when $\beta = 1$} ]  ]  ] ] ] [.{7: return 1 when $\beta <= 0$ } ] ]  ]  ] 
 							
 		
 			As we can see, this tree is infinite, since $b = \beta$ and $\beta$ can be arbitrarily large. In this case, our symbolic execution would run forever if we insisted on exhaustively exploring all possible paths. This illustrates one of the limitations of symbolic execution. For programs with infinite execution trees, we simply cannot exhaust all possible inputs, so we have to restrict our testing to exploring only a finite number of paths. 
-			\\ 
-			For each branch that we do explore however, we will know the behavior of any input that satisfies the \emph{path-constraint} which is still a large number of test runs, resolved with a single execution. An important point here, is that since the \emph{path-constraint} can never become identically false, there must exist input that would follow exactly that path. For this reason there exists a commutative property between the symbolic values, and concrete values that satisfy the particular \emph{path-constraint}. We get the same result if we simply run the program on these concrete values, or if we run it symbolically, and then substitute the symbolic values with concrete values. For this reason, we should be able to always ask for a set of concrete values that will follow the same path as our symbolic execution. This, way we can generate test cases that represents a potentially infinite class of input values. 
-			
 			
 			(Maybe write something about induction over trees, and finite trees allowing for exhaustive search)
+			
+			\subsubsection{the ability(or inability) to decide whether a given path is feasible}
+			
+			(Write something about restrictions on SMT-solvers e.g SAT being NP Complete and some theories may be undecidable)
