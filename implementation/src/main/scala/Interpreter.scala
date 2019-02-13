@@ -1,6 +1,13 @@
 import java.util.NoSuchElementException
 
-import scala.collection.immutable.HashMap
+import Interpreter.AExp.{CallExp, Integer, Var}
+import Interpreter.Aop.{Mul, Plus, Sub}
+import Interpreter.BExp.Bool
+import Interpreter.Bop.GtOp
+import Interpreter.Stm.ExpStm
+import Interpreter.Value.{BoolValue, IntValue}
+
+import scala.collection.mutable
 
 /**
   * Simple interpreter for the language SImPL. We simply descent the AST.
@@ -11,196 +18,198 @@ object Interpreter extends App {
   /**
     * We define the language here
     */
-  //TODO perhaps try to split op binary operators.
 
   sealed trait Expression
 
-  case class Nil() extends Expression
+  sealed trait Value
 
-  sealed trait BExpression extends Expression //Boolean Expression
+  object Value {
 
-  case class Bool(v: Boolean) extends BExpression
+    case class IntValue(x: Int) extends Value
 
-  case class BinBExp(e1: AExpression, e2: AExpression, op: BinBop) extends BExpression
+    case class BoolValue(b: Boolean) extends Value
 
-  sealed trait BinBop
+    case class Unit() extends Value
 
-  case class GtOp() extends BinBop
+  }
 
-  case class EqOp() extends BinBop
+  sealed trait BExp
 
-  sealed trait AExpression extends Expression // Arithmetic Expression
+  object BExp {
 
-  case class CExpression(id: Id, argVals: List[AExpression]) extends AExpression
+    case class Bool(b: Boolean) extends BExp
 
-  case class Integer(x: Int) extends AExpression
+    case class BinExp(e1: AExp, e2: AExp, op: Bop) extends BExp
 
-  case class Id(name: String) extends AExpression
+  }
 
-  case class BinAExp(e1: AExpression, e2: AExpression, op: BinAop) extends AExpression
+  sealed trait Bop
 
-  sealed trait BinAop
+  object Bop {
 
-  case class Add() extends BinAop
+    case class GtOp() extends Bop
 
-  case class Sub() extends BinAop
+    case class EqOp() extends Bop
 
-  case class Mult() extends BinAop
+  }
 
-  case class Div() extends BinAop
+  sealed trait AExp
 
-  sealed trait Statement
+  object AExp {
 
-  case class ExpStm(e: Expression) extends Statement
+    case class Integer(i: Int) extends AExp
 
-  case class AssignStm(id: Id, valExp: AExpression) extends Statement
+    case class Var(name: String) extends AExp
 
-  case class CompStm(s1: Statement, s2: Statement) extends Statement
+    case class BinExp(e1: AExp, e2: AExp, op: Aop) extends AExp
 
-  case class IfStm(cond: BExpression, thenStm: Statement, elseStm: Statement) extends Statement
+    case class CallExp(name: String, args: List[AExp]) extends AExp
 
-  case class WhileStm(cond: BExpression, bodyStm: Statement) extends Statement
+  }
 
-  case class FDecl(id: Id, args: List[Id], fbody: Statement)
+  sealed trait Aop
+
+  object Aop {
+
+    case class Plus() extends Aop
+
+    case class Sub() extends Aop
+
+    case class Mul() extends Aop
+
+    case class Div() extends Aop
+
+  }
+
+  sealed trait Stm
+
+  object Stm {
+
+    case class ExpStm(e: AExp) extends Stm
+
+    case class AssignStm(v: Var, e: AExp) extends Stm
+
+    case class CompStm(s1: Stm, s2: Stm) extends Stm
+
+    case class IfStm(c: BExp, thenStm: Stm, elseSTm: Stm) extends Stm
+
+    case class WhileStm(c: BExp, doStm: Stm) extends Stm
+
+  }
+
+  case class FDecl(name: String, args: List[Var], fbody: Stm)
+
 
   /*
    * A program consist of zero or more top level function declarations, followed by 1 or more statements starting with
    * @stm
    */
-  case class Prog(funcs: HashMap[Id, FDecl], stm: Statement)
+  case class Prog(funcs: mutable.HashMap[String, FDecl], stm: Stm)
 
 
-  def interpProg(p: Prog): Expression = {
+  def interpProg(p: Prog): Value = {
 
     /*
       We interpret a statement in the current environment @venv and return a possibly updated environment
      */
-    def interpStm(statement: Interpreter.Statement, venv: HashMap[Id, Int]): (Expression, HashMap[Id, Int]) = {
+    def interpStm(statement: Stm, venv: mutable.HashMap[Var, IntValue]): Value = {
       statement match {
-        case ExpStm(e) => (interpExp(e, venv), venv)
-        case AssignStm(id, valExp) =>
-          val v = interpExp(valExp, venv)
-          v match {
-            case Integer(i) => (Integer(i), venv.updated(id, i))
-            case _ => throw new IllegalArgumentException("Can only assign Integers to variables")
-          }
-        case CompStm(s1, s2) =>
-          val (_, newEnv) = interpStm(s1, venv)
-          interpStm(s2, newEnv)
-        case IfStm(cond, thenStm, elseStm) =>
-          val c = interpExp(cond, venv)
-          c match {
-            case Bool(v) => if (v) interpStm(thenStm, venv) else interpStm(elseStm, venv)
-            case _ => throw new IllegalArgumentException("malformed conditional expression")
-          }
-        case WhileStm(cond, stm) => {
+        case Stm.ExpStm(e) => interpAexp(e, venv)
+        case Stm.AssignStm(id, valExp) =>
+          val v = interpAexp(valExp, venv)
+          venv.update(id, v)
+          v
+        case Stm.CompStm(s1, s2) =>
+          interpStm(s1, venv)
+          interpStm(s2, venv)
+        case Stm.IfStm(cond, thenStm, elseStm) =>
+          val v = interpBexp(cond, venv)
+          if (v.b) interpStm(thenStm, venv) else interpStm(elseStm, venv)
+
+        case Stm.WhileStm(cond, stm) =>
           interpWhile(cond, stm, venv)
-        }
+
       }
     }
 
-    def interpWhile(cond: BExpression, stm: Statement, venv: HashMap[Id, Int]): (Expression, HashMap[Id, Int]) = {
-
-      def dowork(venv: HashMap[Id, Int]): HashMap[Id, Int] = {
+    def interpWhile(cond: BExp, stm: Stm, venv: mutable.HashMap[Var, IntValue]): Value = {
+      def dowork(): Value = {
         val v = interpBexp(cond, venv)
-        v match {
-          case Bool(b) =>
-            if (b) {
-              val (_, newEnv) = interpStm(stm, venv)
-              dowork(newEnv)
-            }
-            else venv
-          case _ => throw new IllegalArgumentException("malformed conditional expression")
-        }
+        if (v.b) interpStm(stm, venv) else Value.Unit()
       }
 
-      (Nil(), dowork(venv))
+      dowork()
     }
 
-    def interpExp(e: Expression, venv: HashMap[Id, Int]): Expression = {
-      e match {
-        case bExp: BExpression => interpBexp(bExp, venv)
-        case aExp: AExpression => interpAexp(aExp, venv)
-        case Nil() => Nil()
-      }
-    }
 
     /*
      * We interpret call by first evaluation the expressions given as argument values, and then we add the function
      * arguments to a new local environment, which is passed onto the interpretation of the function body.
      */
-    def interpCall(e: CExpression, venv: HashMap[Id, Int]): Expression = {
-      val decl = p.funcs.get(e.id)
+    def interpCall(e: CallExp, venv: mutable.HashMap[Var, IntValue]): IntValue = {
+      val decl = p.funcs.get(e.name)
       decl match {
-        case None => throw new NoSuchElementException(s"function ${e.id.name} not defined")
+        case None => throw new NoSuchElementException(s"function ${e.name} not defined")
         case Some(f) =>
-          val vals = e.argVals.map((exp: AExpression) => {
-            val v = interpAexp(exp, venv)
-            v match {
-              case Integer(x) => x
-              case _ => throw new IllegalArgumentException("functions can only take integer arguments")
-            }
-          })
+          val vals = e.args.map((exp: AExp) => interpAexp(exp, venv))
           val argValPairs = f.args zip vals
-          val addTo = (m: HashMap[Id, Int], t: (Id, Int)) => m.updated(t._1, t._2)
-          val newEnv = argValPairs.foldLeft(venv)(addTo)
-          val (res, _) = interpStm(f.fbody, newEnv)
-          res
-      }
-    }
-
-    def interpBexp(e: BExpression, venv: HashMap[Id, Int]): Expression = {
-      e match {
-        case b: Bool => b
-        case bin: BinBExp => interpBinBExp(bin, venv)
-      }
-    }
-
-    def interpAexp(e: AExpression, venv: HashMap[Id, Int]): Expression = {
-      e match {
-        case i: Integer => i
-        case Id(name) =>
-          val v = venv.get(Id(name))
-          v match {
-            case None => throw new NoSuchElementException(s"variable $name not defined")
-            case Some(value) => Integer(value)
+          val addTo = (m: mutable.HashMap[Var, IntValue], t: (Var, IntValue)) => {
+            m.update(t._1, t._2)
+            m
           }
-        case bin: BinAExp => interpBinAExp(bin, venv)
-        case cExp: CExpression => interpCall(cExp, venv)
+          val venvCopy = venv.clone()
+          val newEnv = argValPairs.foldLeft(venvCopy)(addTo)
+          val res = interpStm(f.fbody, newEnv)
+          res match {
+            case i: Value.IntValue => i
+            case _ => throw new IllegalArgumentException("functions can may only return boolean values!")
+          }
       }
     }
 
-    def interpBinBExp(e: BinBExp, venv: HashMap[Id, Int]): Expression = {
+    def interpBexp(e: BExp, venv: mutable.HashMap[Var, IntValue]): BoolValue = {
+      e match {
+        case Bool(b) => BoolValue(b)
+        case bin: BExp.BinExp => interpBinBExp(bin, venv)
+      }
+    }
+
+    def interpAexp(e: AExp, venv: mutable.HashMap[Var, IntValue]): IntValue = {
+      e match {
+        case AExp.Integer(i) => IntValue(i)
+        case v: AExp.Var =>
+          val res = venv.get(v)
+          res match {
+            case None => throw new NoSuchElementException(s"variable ${v.name} not defined")
+            case Some(r) => r
+          }
+        case bin: AExp.BinExp => interpBinAExp(bin, venv)
+        case cExp: AExp.CallExp => interpCall(cExp, venv)
+      }
+    }
+
+    def interpBinBExp(e: BExp.BinExp, venv: mutable.HashMap[Var, IntValue]): BoolValue = {
       val v1 = interpAexp(e.e1, venv)
       val v2 = interpAexp(e.e2, venv)
-      (v1, v2) match {
-        case (Integer(i), Integer(j)) =>
-          e.op match {
-            case GtOp() => Bool(i > j)
-            case EqOp() => Bool(i == j)
-          }
-        case _ => throw new IllegalArgumentException("Cannot compare other types than integers")
+      e.op match {
+        case Bop.GtOp() => BoolValue(v1.x > v2.x)
+        case Bop.EqOp() => BoolValue(v1.x == v2.x)
       }
     }
 
-    def interpBinAExp(e: BinAExp, venv: HashMap[Id, Int]): Expression = {
+    def interpBinAExp(e: AExp.BinExp, venv: mutable.HashMap[Var, IntValue]): IntValue = {
       val v1 = interpAexp(e.e1, venv)
       val v2 = interpAexp(e.e2, venv)
-      (v1, v2) match {
-        case (Integer(i), Integer(j)) =>
-          e.op match {
-            case Add() => Integer(i + j)
-            case Sub() => Integer(i - j)
-            case Mult() => Integer(i * j)
-            case Div() => Integer(i / j)
-          }
-        case _ => throw new IllegalArgumentException("Cannot add other types than integers")
+      e.op match {
+        case Aop.Plus() => IntValue(v1.x + v2.x)
+        case Aop.Sub() => IntValue(v1.x - v2.x)
+        case Aop.Mul() => IntValue(v1.x * v2.x)
+        case Aop.Div() => IntValue(v1.x / v2.x)
       }
     }
 
-    val env: HashMap[Id, Int] = HashMap()
-    val (v, _) = interpStm(p.stm, env)
-    v
+    val venv: mutable.HashMap[Var, IntValue] = mutable.HashMap()
+    interpStm(p.stm, venv)
   }
 
   /*
@@ -213,33 +222,29 @@ object Interpreter extends App {
    * fib(12)
    */
 
-  val testProg = Prog(
-    HashMap(Id("fib") -> FDecl(Id("fib"), List(Id("n")),
-      IfStm(
-        BinBExp(Integer(2), Id("n"), GtOp()),
-        ExpStm(Id("n")),
-        ExpStm(
-          BinAExp(
-            CExpression(Id("fib"), List(BinAExp(Id("n"), Integer(1), Sub()))),
-            CExpression(Id("fib"), List(BinAExp(Id("n"), Integer(2), Sub()))),
-            Add()
-          )
+  val testProg = Prog(mutable.HashMap("fib" -> FDecl("fib", List(Var("n")),
+    Stm.IfStm(
+      BExp.BinExp(Integer(2), Var("n"), GtOp()),
+      Stm.ExpStm(Var("n")),
+      Stm.ExpStm(
+        AExp.BinExp(
+          CallExp("fib", List(AExp.BinExp(Var("n"), Integer(1), Sub()))),
+          CallExp("fib", List(AExp.BinExp(Var("n"), Integer(2), Sub()))),
+          Plus()
         )
-      ))),
-    ExpStm(
-      CExpression(Id("fib"), List(Integer(12)))
-    ))
+      )))),
+    Stm.ExpStm(CallExp("fib", List(Integer(12)))))
+
 
   /*
    * Test to ensure that locally defined variables does not escape function scope
    */
-  val testProg1 = Prog(HashMap(Id("test") -> FDecl(Id("test"), List(Id("a")),
-    ExpStm(Id("a")))),
-    CompStm(
-      ExpStm(
-        CExpression(Id("test"), List(Integer(42)))
-      ),
-      ExpStm(Id("a"))
+
+  val testProg1 = Prog(mutable.HashMap("test" -> FDecl("test", List(Var("a")),
+    Stm.ExpStm(AExp.BinExp(Var("a"), Integer(2), Mul())))),
+    Stm.CompStm(
+      Stm.ExpStm(CallExp("test", List(Integer(2)))),
+      Stm.ExpStm(Var("a"))
     )
   )
 
@@ -247,16 +252,6 @@ object Interpreter extends App {
    * Test to ensure that mutations of global variables only exists in the function scope
    */
 
-  val testProg2 = Prog(HashMap(Id("test") -> FDecl(Id("test"), List.empty[Id],
-    AssignStm(Id("x"), Integer(3)))),
-    CompStm(
-      AssignStm(Id("x"), Integer(1)),
-      CompStm(
-        ExpStm(CExpression(Id("test"), List.empty[AExpression])),
-        ExpStm(Id("x"))
-      )
-    )
-  )
 
   /*
    * fun pow(a, b) {
@@ -271,34 +266,7 @@ object Interpreter extends App {
    * pow(2,3)
    */
 
-  val testProg3 = Prog(HashMap(Id("pow") -> FDecl(Id("pow"), List(Id("a"), Id("b")),
-    CompStm(
-      AssignStm(Id("res"), Integer(1)),
-      CompStm(
-        AssignStm(Id("i"), Integer(0)),
-        CompStm(
-          WhileStm(
-            BinBExp(Id("b"), Id("i"), GtOp()),
-            CompStm(
-              AssignStm(
-                Id("res"),
-                BinAExp(Id("res"), Id("a"), Mult())
-              ),
-              AssignStm(
-                Id("i"),
-                BinAExp(Id("i"), Integer(1), Add())
-              )
-            )
-          ),
-          ExpStm(Id("res"))
-        )
-      )
-    )
-  )),
-    ExpStm(CExpression(Id("pow"), List(Integer(3), Integer(5))))
-  )
-
-  val res = interpProg(testProg3)
+  val res = interpProg(testProg1)
   println(s"result was: ${res.toString}")
 }
 
