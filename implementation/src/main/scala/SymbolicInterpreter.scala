@@ -1,3 +1,5 @@
+import java.util
+
 import Grammar._
 import AExp._
 import BExp._
@@ -5,8 +7,10 @@ import Aop._
 import Bop._
 import Value._
 import Stm._
-import scala.collection.mutable
 
+import scala.collection.mutable
+import com.microsoft.z3
+import com.microsoft.z3.Solver
 
 class SymbolicInterpreter {
   def interpProg(p: Prog): SymValue = {
@@ -81,6 +85,19 @@ class SymbolicInterpreter {
           case Div() => "(" + symExprToString(e1) + ") + (" + symExprToString(e2) + ")"
         }
     }
+
+  }
+
+  def testZ3() = {
+    val ctx = new z3.Context(new util.HashMap[String, String])
+    val a = ctx.mkBoolConst("a")
+    val b = ctx.mkBoolConst("b")
+    val c = ctx.mkBoolConst("c")
+
+    val f = ctx.mkAnd(ctx.mkOr(a,b), c)
+    val s = ctx.mkSolver()
+    s.add(f)
+    println(s.check())
   }
 
 }

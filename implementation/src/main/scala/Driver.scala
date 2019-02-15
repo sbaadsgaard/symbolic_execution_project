@@ -80,5 +80,6 @@ object Driver extends App {
   )
   val resConcrete = concreteInterp.interpProg(testProg)
   val resSymbolic = symbolicInterp.interpProg(testSymProg)
-  println(s"result was: ${symbolicInterp.symExprToString(resSymbolic.e)}")
+  // println(s"result was: ${symbolicInterp.symExprToString(resSymbolic.e)}")
+  println(s"result was: ${resConcrete}")
 }
