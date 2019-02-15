@@ -6,8 +6,6 @@ import scala.collection.mutable
 
 object Grammar {
 
-  sealed trait Expression
-
   sealed trait Value
 
   object Value {

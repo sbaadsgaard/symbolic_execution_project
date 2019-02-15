@@ -1,11 +1,13 @@
 import java.util.NoSuchElementException
 
-import Interpreter.AExp.{CallExp, Integer, Var}
-import Interpreter.Aop.{Mul, Plus, Sub}
-import Interpreter.BExp.Bool
-import Interpreter.Bop.GtOp
-import Interpreter.Stm.ExpStm
-import Interpreter.Value.{BoolValue, IntValue}
+import Grammar._
+import AExp._
+import BExp._
+import Aop._
+import Bop._
+import Value._
+import Stm._
+
 
 import scala.collection.mutable
 
@@ -19,92 +21,6 @@ object Interpreter extends App {
     * We define the language here
     */
 
-  sealed trait Expression
-
-  sealed trait Value
-
-  object Value {
-
-    case class IntValue(x: Int) extends Value
-
-    case class BoolValue(b: Boolean) extends Value
-
-    case class Unit() extends Value
-
-  }
-
-  sealed trait BExp
-
-  object BExp {
-
-    case class Bool(b: Boolean) extends BExp
-
-    case class BinExp(e1: AExp, e2: AExp, op: Bop) extends BExp
-
-  }
-
-  sealed trait Bop
-
-  object Bop {
-
-    case class GtOp() extends Bop
-
-    case class EqOp() extends Bop
-
-  }
-
-  sealed trait AExp
-
-  object AExp {
-
-    case class Integer(i: Int) extends AExp
-
-    case class Var(name: String) extends AExp
-
-    case class BinExp(e1: AExp, e2: AExp, op: Aop) extends AExp
-
-    case class CallExp(name: String, args: List[AExp]) extends AExp
-
-  }
-
-  sealed trait Aop
-
-  object Aop {
-
-    case class Plus() extends Aop
-
-    case class Sub() extends Aop
-
-    case class Mul() extends Aop
-
-    case class Div() extends Aop
-
-  }
-
-  sealed trait Stm
-
-  object Stm {
-
-    case class ExpStm(e: AExp) extends Stm
-
-    case class AssignStm(v: Var, e: AExp) extends Stm
-
-    case class CompStm(s1: Stm, s2: Stm) extends Stm
-
-    case class IfStm(c: BExp, thenStm: Stm, elseSTm: Stm) extends Stm
-
-    case class WhileStm(c: BExp, doStm: Stm) extends Stm
-
-  }
-
-  case class FDecl(name: String, args: List[Var], fbody: Stm)
-
-
-  /*
-   * A program consist of zero or more top level function declarations, followed by 1 or more statements starting with
-   * @stm
-   */
-  case class Prog(funcs: mutable.HashMap[String, FDecl], stm: Stm)
 
 
   def interpProg(p: Prog): Value = {
@@ -114,19 +30,19 @@ object Interpreter extends App {
      */
     def interpStm(statement: Stm, venv: mutable.HashMap[Var, IntValue]): Value = {
       statement match {
-        case Stm.ExpStm(e) => interpAexp(e, venv)
-        case Stm.AssignStm(id, valExp) =>
+        case ExpStm(e) => interpAexp(e, venv)
+        case AssignStm(id, valExp) =>
           val v = interpAexp(valExp, venv)
           venv.update(id, v)
           v
-        case Stm.CompStm(s1, s2) =>
+        case CompStm(s1, s2) =>
           interpStm(s1, venv)
           interpStm(s2, venv)
-        case Stm.IfStm(cond, thenStm, elseStm) =>
+        case IfStm(cond, thenStm, elseStm) =>
           val v = interpBexp(cond, venv)
           if (v.b) interpStm(thenStm, venv) else interpStm(elseStm, venv)
 
-        case Stm.WhileStm(cond, stm) =>
+        case WhileStm(cond, stm) =>
           interpWhile(cond, stm, venv)
 
       }
@@ -135,7 +51,7 @@ object Interpreter extends App {
     def interpWhile(cond: BExp, stm: Stm, venv: mutable.HashMap[Var, IntValue]): Value = {
       def dowork(): Value = {
         val v = interpBexp(cond, venv)
-        if (v.b) interpStm(stm, venv) else Value.Unit()
+        if (v.b) interpStm(stm, venv) else Unit()
       }
 
       dowork()
@@ -161,7 +77,7 @@ object Interpreter extends App {
           val newEnv = argValPairs.foldLeft(venvCopy)(addTo)
           val res = interpStm(f.fbody, newEnv)
           res match {
-            case i: Value.IntValue => i
+            case i: IntValue => i
             case _ => throw new IllegalArgumentException("functions can may only return boolean values!")
           }
       }
@@ -176,15 +92,15 @@ object Interpreter extends App {
 
     def interpAexp(e: AExp, venv: mutable.HashMap[Var, IntValue]): IntValue = {
       e match {
-        case AExp.Integer(i) => IntValue(i)
-        case v: AExp.Var =>
+        case Integer(i) => IntValue(i)
+        case v: Var =>
           val res = venv.get(v)
           res match {
             case None => throw new NoSuchElementException(s"variable ${v.name} not defined")
             case Some(r) => r
           }
         case bin: AExp.BinExp => interpBinAExp(bin, venv)
-        case cExp: AExp.CallExp => interpCall(cExp, venv)
+        case cExp: CallExp => interpCall(cExp, venv)
       }
     }
 
@@ -192,8 +108,8 @@ object Interpreter extends App {
       val v1 = interpAexp(e.e1, venv)
       val v2 = interpAexp(e.e2, venv)
       e.op match {
-        case Bop.GtOp() => BoolValue(v1.x > v2.x)
-        case Bop.EqOp() => BoolValue(v1.x == v2.x)
+        case GtOp() => BoolValue(v1.x > v2.x)
+        case EqOp() => BoolValue(v1.x == v2.x)
       }
     }
 
@@ -201,10 +117,10 @@ object Interpreter extends App {
       val v1 = interpAexp(e.e1, venv)
       val v2 = interpAexp(e.e2, venv)
       e.op match {
-        case Aop.Plus() => IntValue(v1.x + v2.x)
-        case Aop.Sub() => IntValue(v1.x - v2.x)
-        case Aop.Mul() => IntValue(v1.x * v2.x)
-        case Aop.Div() => IntValue(v1.x / v2.x)
+        case Plus() => IntValue(v1.x + v2.x)
+        case Sub() => IntValue(v1.x - v2.x)
+        case Mul() => IntValue(v1.x * v2.x)
+        case Div() => IntValue(v1.x / v2.x)
       }
     }
 
@@ -223,17 +139,17 @@ object Interpreter extends App {
    */
 
   val testProg = Prog(mutable.HashMap("fib" -> FDecl("fib", List(Var("n")),
-    Stm.IfStm(
+    IfStm(
       BExp.BinExp(Integer(2), Var("n"), GtOp()),
-      Stm.ExpStm(Var("n")),
-      Stm.ExpStm(
-        AExp.BinExp(
-          CallExp("fib", List(AExp.BinExp(Var("n"), Integer(1), Sub()))),
-          CallExp("fib", List(AExp.BinExp(Var("n"), Integer(2), Sub()))),
+      ExpStm(Var("n")),
+      ExpStm(
+        BinExp(
+          CallExp("fib", List(BinExp(Var("n"), Integer(1), Sub()))),
+          CallExp("fib", List(BinExp(Var("n"), Integer(2), Sub()))),
           Plus()
         )
       )))),
-    Stm.ExpStm(CallExp("fib", List(Integer(12)))))
+    ExpStm(CallExp("fib", List(Integer(12)))))
 
 
   /*
@@ -241,10 +157,10 @@ object Interpreter extends App {
    */
 
   val testProg1 = Prog(mutable.HashMap("test" -> FDecl("test", List(Var("a")),
-    Stm.ExpStm(AExp.BinExp(Var("a"), Integer(2), Mul())))),
-    Stm.CompStm(
-      Stm.ExpStm(CallExp("test", List(Integer(2)))),
-      Stm.ExpStm(Var("a"))
+    ExpStm(BinExp(Var("a"), Integer(2), Mul())))),
+    CompStm(
+      ExpStm(CallExp("test", List(Integer(2)))),
+      ExpStm(Var("a"))
     )
   )
 
