@@ -9,6 +9,9 @@ import scala.collection.mutable
 
 object Driver extends App {
 
+  val concreteInterp = new Interpreter()
+  val symbolicInterp = new SymbolicInterpreter()
+
   /*
    * fun fib(n) = if (2 > n) n else fib(n-1) + fib(n-2)
    * fib(12)
@@ -41,23 +44,41 @@ object Driver extends App {
   )
 
   /*
-   * Test to ensure that mutations of global variables only exists in the function scope
-   */
-
-
-  /*
-   * fun pow(a, b) {
-   *  res = 1
-   *  i = 0
-   *  while (b > i) do
-   *    res = res*a
-   *    i = 1 + 1
-   *  res
+   * fun sum(a, b, c) = {
+   *  var x = a + b
+   *  var y = b + c
+   *  var z = x + y - b
    * }
-   *
-   * pow(2,3)
    */
-
-  val res = Interpreter.interpProg(testProg)
-  println(s"result was: ${res.toString}")
+  val testSymProg = Prog(mutable.HashMap("sum" -> FDecl("sum", List(Var("a"), Var("b"), Var("c")),
+    CompStm(
+      AssignStm(
+        Var("x"),
+        AExp.BinExp(Var("a"), Var("b"), Plus())
+      ),
+      CompStm(
+        AssignStm(
+          Var("y"),
+          AExp.BinExp(Var("b"), Var("c"), Plus())
+        ),
+        AssignStm(
+          Var("z"),
+          AExp.BinExp(
+            AExp.BinExp(
+              Var("x"),
+              Var("y"),
+              Plus()
+            ),
+            Var("b"),
+            Sub()
+          )
+        )
+      )
+    )
+    )),
+    ExpStm(CallExp("sum", List(Sym("a"), Sym("b"), Sym("c"))))
+  )
+  val resConcrete = concreteInterp.interpProg(testProg)
+  val resSymbolic = symbolicInterp.interpProg(testSymProg)
+  println(s"result was: ${symbolicInterp.symExprToString(resSymbolic.e)}")
 }

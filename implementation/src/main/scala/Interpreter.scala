@@ -1,5 +1,4 @@
 import java.util.NoSuchElementException
-
 import Grammar._
 import AExp._
 import BExp._
@@ -7,14 +6,12 @@ import Aop._
 import Bop._
 import Value._
 import Stm._
-
-
 import scala.collection.mutable
 
 /**
   * Simple interpreter for the language SImPL. We simply descent the AST.
   */
-object Interpreter {
+class Interpreter {
 
   /** ***********************************************************************/
   /**
