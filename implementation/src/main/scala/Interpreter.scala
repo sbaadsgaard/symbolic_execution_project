@@ -101,6 +101,7 @@ object Interpreter extends App {
           }
         case bin: AExp.BinExp => interpBinAExp(bin, venv)
         case cExp: CallExp => interpCall(cExp, venv)
+        case Sym(s) => throw new UnsupportedOperationException("Symbolic values not supported in this interpreter")
       }
     }
 
@@ -143,9 +144,9 @@ object Interpreter extends App {
       BExp.BinExp(Integer(2), Var("n"), GtOp()),
       ExpStm(Var("n")),
       ExpStm(
-        BinExp(
-          CallExp("fib", List(BinExp(Var("n"), Integer(1), Sub()))),
-          CallExp("fib", List(BinExp(Var("n"), Integer(2), Sub()))),
+        AExp.BinExp(
+          CallExp("fib", List(AExp.BinExp(Var("n"), Integer(1), Sub()))),
+          CallExp("fib", List(AExp.BinExp(Var("n"), Integer(2), Sub()))),
           Plus()
         )
       )))),
@@ -157,7 +158,7 @@ object Interpreter extends App {
    */
 
   val testProg1 = Prog(mutable.HashMap("test" -> FDecl("test", List(Var("a")),
-    ExpStm(BinExp(Var("a"), Integer(2), Mul())))),
+    ExpStm(AExp.BinExp(Var("a"), Integer(2), Mul())))),
     CompStm(
       ExpStm(CallExp("test", List(Integer(2)))),
       ExpStm(Var("a"))
@@ -182,7 +183,7 @@ object Interpreter extends App {
    * pow(2,3)
    */
 
-  val res = interpProg(testProg1)
+  val res = interpProg(testProg)
   println(s"result was: ${res.toString}")
 }
 

@@ -10,6 +10,8 @@ object Grammar {
 
   object Value {
 
+    case class SymValue(e:AExp) extends Value
+
     case class IntValue(x: Int) extends Value
 
     case class BoolValue(b: Boolean) extends Value
@@ -41,6 +43,8 @@ object Grammar {
   sealed trait AExp
 
   object AExp {
+
+    case class Sym(s: String) extends AExp
 
     case class Integer(i: Int) extends AExp
 
