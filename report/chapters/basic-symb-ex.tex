@@ -48,13 +48,9 @@ We will describe the language formally, by the following Context Free Grammar:
 \end{grammar}
 
 \subsubsection{Expressions}
-expressions comes in three different types, arithmetic, boolean and a $nil$ expressions.
-
-\textbf{arithmetic expressions} consists of integers, variables referencing integers, or the usual binary operations on these two. We also consider function calls an arithmetic expression, but assigning anything other than integers to a variable will result in a runtime error. 
+\simpl supports two different types of expressions, arithmetic expressions and boolean expressions.
+\textbf{arithmetic expressions} consists of integers, variables referencing integers, or the usual binary operations on these two. We also consider function calls an arithmetic expression, and therefore functions must return integer values.
 \textbf{boolean expressions} consists of the boolean values $true$ and $false$, as well as comparisons of arithmetic expressions. 
-
-\textbf{nil}
-  nil expression is a special case which is only returned from \emph{while} statements. 
 
 \subsubsection{Statements}
 Statements consists of assigning integer values to variables, \emph{if-then-else} statements for branching and a \emph{while-do} statement for looping. Finally a statement can simply an expression, as well as a compound statement to allow for more than one statement to be executed.
@@ -72,23 +68,32 @@ where $+, *, -, /$ denotes the usual arithmatic operators on integers, and $>, =
 \subsubsection{programs}
 
 We consider a program to be zero of more top-level function declarations, as well a statement. The statement will act as the starting point when executing a a program. 
+
 \subsection{Interpreting \simpl}
 
-In order to work with \simpl, we have build a simple interpreter using the \emph{Scala} programming language.
-
- We represent our environment as a map 
+In order to work with \simpl, we have build a simple interpreter using the \emph{Scala} programming language. To keep track of our program state, we define a map
 \begin{equation}
 	env: \langle Id \rangle   \rightarrow \mathbb{N}
 \end{equation}
-and each time we interpret a statement we return an instance of this map that reflects the current state of the environment. Note that we restrict both variables and function arguments to integer values. 
+that maps variable names to integer values. When interpreting a statement or an expression, this map will be passed along. Whenever we interpret a function call, we make a copy of the current environment to which we add the call-parameters. This copy is then passed to the interpretation of the function body, in order to ensure that functions are side-effect free. 
 
 A program is represented as an object $Prog$ which carries a map
 
 \begin{equation*}
 	funcs: \langle Id \rangle \rightarrow \langle fdecl \rangle
 \end{equation*}
+from function names to top-level function declarations, as well as a root statement. To interpret the program we simply traverse the AST starting with the root statement. 
 
-of top-level function declarations, as well as a root statement. To interpret the program we simply traverse the tree starting with the root statement. Interpreting function calls consists of looking up the function in the $Prog$ object, add the function parameters to the environment and then interpreting the statement in the function body. In order to keep functions from having side effects, we simply return the original environment as it was before adding function parameters and interpreting the body. 
+
+\subsubsection{return values}
+In order to handle return types, we extend the implementation of the grammar with a non-terminal 
+
+\begin{grammar}
+	<value> ::= IntValue | BoolValue | Unit.
+\end{grammar}
+
+Arithmetic expressions will always return an $IntValue$ and Boolean expressions will always return a $BoolValue$. $Unit$ is a special return value which is reserved for \emph{while}-statements.
+
 
 \subsection{Symbolic interpreter for \simpl}
 
@@ -107,9 +112,22 @@ will add an extra non-terminal to our grammar which will represent symbolic valu
 	\vdots
 \end{grammar}
 
-Furthermore, we must extend the capabilities of our environment, so that it does not only map to Integer values, but instead to arbitrary expressions over integers and symbolic values. Furthermore we must extend the return type of functions as well. These too, will be allowed to return arbitrary expressions over integers and symbolic values. 
+\subsubsection{Determining feasible paths}
+In order to determine which execution paths are feasible, we use the \textbf{Java} implementation of the \emph{SMT-solver} \textbf{Z3}. 
+\subsubsection{Return values}
+We extend our return values with the terminal $SymValue$ which contains expressions of the type $Expr$ from \textbf{Z3}, over integers and symbolic values.
 
 \subsubsection{Representing the path constraint}
+To represent the \emph{path-constraint} we implement a class $PathConstraint$ which contains a boolean formula $f = BoolExpr \land BoolExpr \land ...$ where each expression of type $BoolExpr$ is a condition that the input values must satisfy. 
+\\
 
-Since the path constraint is simply a conjunction of expression on the form 
-$(\langle aexp \rangle op \langle aexp \rangle)$  with  $op \in \{ >, == \}$, we will simply represent the $PC$ as a list of such expressions. So if $PC = true \land e1 \land e1 \land \ldots \land e_n$, we will represent it as the list $L_{pc} = [true, e1, e2, \ldots, e_n]$
+\subsubsection{Representing the program state}
+We must extend the capabilities of our environment, so that it does not only map to Integer values, but instead to arbitrary expressions over integers and symbolic values. Therefore we define environment as a map
+\begin{equation*}
+	m: \langle Id \rangle \rightarrow SymValue
+\end{equation*}
+from variable identifiers to values of type $SymValue$.
+
+\subsubsection{Execution strategy}
+The first execution strategy that we implement is a naive approach, where all feasible paths will be explored in \emph{Depth-first} order, starting with the \emph{else}-branch. Note that our definition of \emph{feasible} is any path that we can determine to be satisfiable. This means that \emph{path-constraints} that \textbf{Z3} cannot determine the satisfiability of, will be regarded as infeasible, and ignored.
+This strategy is sufficient for small \emph{finite} programs, but scales badly to programs with large recursion trees, and it runs forever on programs with infinite recursion trees. 
