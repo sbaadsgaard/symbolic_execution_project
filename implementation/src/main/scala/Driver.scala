@@ -7,10 +7,13 @@ import Grammar.Prog
 import Grammar.FDecl
 import scala.collection.mutable
 
+
 object Driver extends App {
 
   val concreteInterp = new Interpreter()
   val symbolicInterp = new SymbolicInterpreter()
+
+  println(System.getProperty("java.library.path"))
 
   /*
    * fun fib(n) = if (2 > n) n else fib(n-1) + fib(n-2)
@@ -75,11 +78,61 @@ object Driver extends App {
         )
       )
     )
-    )),
+  )),
     ExpStm(CallExp("sum", List(Sym("a"), Sym("b"), Sym("c"))))
   )
+
+  /*
+   * fun testme(x, y) {
+   *  var z = 2*y
+   *  if (z == x) {
+   *    if (x > y + 10) {
+   *      0
+   *    } else {
+   *      1
+   *    }
+   *  } else {
+   *    2
+   *  }
+   *
+   * }
+   *
+   */
+  val testSymProg1 = Prog(
+    mutable.HashMap("testme" -> FDecl("testme", List(Var("x"), Var("y")),
+      CompStm(
+        AssignStm(Var("z"), AExp.BinExp(Integer(2), Var("y"), Mul())),
+        IfStm(
+          BExp.BinExp(
+            Var("z"),
+            Var("x"),
+            EqOp()
+          ),
+          IfStm(
+            BExp.BinExp(
+              Var("x"),
+              AExp.BinExp(
+                Var("y"),
+                Integer(10),
+                Plus()
+              ),
+              GtOp()
+            ),
+            ExpStm(Integer(0)),
+            ExpStm(Integer(1))
+          ),
+          ExpStm(Integer(2))
+        ))
+    )),
+    ExpStm(CallExp(
+      "testme",
+      List(Sym("x"), Sym("y"))
+    ))
+  )
+
   val resConcrete = concreteInterp.interpProg(testProg)
-  val resSymbolic = symbolicInterp.interpProg(testSymProg)
-  // println(s"result was: ${symbolicInterp.symExprToString(resSymbolic.e)}")
-  println(s"result was: ${resConcrete}")
+  val resSymbolic = symbolicInterp.interpProg(testSymProg1)
+
+  println(s"result was: $resSymbolic")
+
 }

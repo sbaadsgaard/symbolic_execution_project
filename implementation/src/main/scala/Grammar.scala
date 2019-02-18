@@ -1,4 +1,5 @@
 import scala.collection.mutable
+import com.microsoft.z3.{ArithExpr, Expr}
 
 /**
   * Grammar that defines SImPL
@@ -10,7 +11,7 @@ object Grammar {
 
   object Value {
 
-    case class SymValue(e:AExp) extends Value
+    case class SymValue(e: Expr) extends Value
 
     case class IntValue(x: Int) extends Value
 
