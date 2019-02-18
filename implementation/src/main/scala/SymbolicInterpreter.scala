@@ -50,6 +50,7 @@ class SymbolicInterpreter(symCtx: Context = new Context(new util.HashMap[String,
               } else if (elseBranch == Status.SATISFIABLE) {
                 interpProg(Prog(p.funcs, elseStm), env, pc.ForkPathConstraint(fNeg), symbols.clone())
               } else {
+                // TODO figure out what to do with this case. Will it ever happen? and if so, we should handle it more gracefully than throwing an exception
                 s.reset()
                 s.add(pc.getFormula)
                 val model = s.getModel
