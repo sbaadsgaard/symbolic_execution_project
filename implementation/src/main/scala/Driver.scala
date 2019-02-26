@@ -217,6 +217,6 @@ object Driver extends App {
     ExpStm(CallExp("pow", List(Sym("a"), Sym("b"))))
   )
   val resConcrete = concreteInterp.interpProg(testProg)
-  val resSymbolic = symbolicInterp.interpProg(testSymProg2, maxBranches = 10, currBranches = 0)
+  val resSymbolic = symbolicInterp.interpProg(testSymProg4, maxBranches = 10)
 
 }
