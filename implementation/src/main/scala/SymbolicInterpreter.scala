@@ -1,21 +1,21 @@
 import java.util
 
+import Grammar.AExp._
+import Grammar.Aop._
+import Grammar.BExp._
+import Grammar.Bop._
+import Grammar.Stm._
+import Grammar.Value._
 import Grammar._
-import AExp._
-import BExp._
-import Aop._
-import Bop._
-import Value._
-import Stm._
-import scala.collection.mutable
-import com.microsoft.z3
 import com.microsoft.z3._
 
+import scala.collection.mutable
 
-class SymbolicInterpreter(symCtx: Context = new Context(new util.HashMap[String, String])) {
+
+class SymbolicInterpreter(ctx: Context = new Context(new util.HashMap[String, String])) {
   def interpProg(p: Prog,
                  env: mutable.HashMap[Var, SymValue] = mutable.HashMap(),
-                 pc: PathConstraint = new PathConstraint(symCtx, symCtx.mkTrue()),
+                 pc: PathConstraint = new PathConstraint(ctx, ctx.mkTrue()),
                  symbols: mutable.Set[IntExpr] = mutable.Set(),
                  maxBranches: Int,
                  currBranches: Int): Value = {
@@ -32,16 +32,16 @@ class SymbolicInterpreter(symCtx: Context = new Context(new util.HashMap[String,
           env.update(v, r)
           r
         case CompStm(s1, s2) =>
-          interpStm(s1, env, next = Some(s2))
+          interpStm(s1, env, next = Some(s2)) //We set the value next to s2, to allow proper forking in ifstm and whilestm
           interpStm(s2, env)
         case IfStm(c, thenStm, elseStm) =>
           val cond = interpBExp(c, env)
           cond match {
             case BoolValue(b) => if (b) interpStm(thenStm, env) else interpStm(elseStm, env)
             case SymValue(e: BoolExpr) =>
-              val f = symCtx.mkAnd(pc.formula, e)
-              val fNeg = symCtx.mkAnd(pc.formula, symCtx.mkNot(e))
-              val s = symCtx.mkSolver()
+              val f = ctx.mkAnd(pc.formula, e)
+              val fNeg = ctx.mkAnd(pc.formula, ctx.mkNot(e))
+              val s = ctx.mkSolver()
               val thenBranch = s.check(f)
               val elseBranch = s.check(fNeg)
               if (thenBranch == Status.SATISFIABLE) {
@@ -80,7 +80,13 @@ class SymbolicInterpreter(symCtx: Context = new Context(new util.HashMap[String,
         case _ => throw new UnsupportedOperationException("method not implemented")
       }
     }
-
+    //TODO refactor this method and the code for if statements, to avoid duplicate code
+    /**
+      * @param ws the while statement to be interpreted
+      * @param env current version of our environment(mapping from vars to symbolic values)
+      * @param next the expression to be executed after this while statement (None if there is nothing to be executed, Some(stm) if there is
+      * @return a Value (specifcally either Unit or SymValue)
+      */
     def interpWhile(ws: Grammar.Stm.WhileStm, env: mutable.HashMap[Var, SymValue], next: Option[Stm]): Value = {
       def dowork(): Value = {
         val cond = interpBExp(ws.c, env)
@@ -90,9 +96,9 @@ class SymbolicInterpreter(symCtx: Context = new Context(new util.HashMap[String,
             dowork()
           } else Unit()
           case SymValue(e: BoolExpr) =>
-            val f = symCtx.mkAnd(pc.formula, e)
-            val fNeg = symCtx.mkAnd(pc.formula, symCtx.mkNot(e))
-            val s = symCtx.mkSolver()
+            val f = ctx.mkAnd(pc.formula, e)
+            val fNeg = ctx.mkAnd(pc.formula, ctx.mkNot(e))
+            val s = ctx.mkSolver()
             val continueBranch = s.check(f)
             val endBranch = s.check(fNeg)
             if (endBranch == Status.SATISFIABLE) {
@@ -138,12 +144,17 @@ class SymbolicInterpreter(symCtx: Context = new Context(new util.HashMap[String,
       dowork()
     }
 
+    /**
+      * @param e the expression to be interpreted
+      * @param env the current version of the environment(mapping from vars to symbolic values)
+      * @return a SymValue which is an arithmetic expressions over integers and symbols
+      */
     def interpAExp(e: AExp, env: mutable.HashMap[Var, SymValue]): SymValue = {
 
       e match {
-        case Integer(i) => SymValue(symCtx.mkInt(i));
+        case Integer(i) => SymValue(ctx.mkInt(i));
         case Sym(sym) =>
-          val const = symCtx.mkIntConst(sym)
+          val const = ctx.mkIntConst(sym)
           symbols.add(const)
           SymValue(const)
         case v: Var =>
@@ -156,10 +167,11 @@ class SymbolicInterpreter(symCtx: Context = new Context(new util.HashMap[String,
           val v1 = interpAExp(bin.e1, env).e.asInstanceOf[ArithExpr]
           val v2 = interpAExp(bin.e2, env).e.asInstanceOf[ArithExpr]
           bin.op match {
-            case Plus() => SymValue(symCtx.mkAdd(v1, v2))
-            case Sub() => SymValue(symCtx.mkSub(v1, v2))
-            case Mul() => SymValue(symCtx.mkMul(v1, v2))
-            case Div() => SymValue(symCtx.mkDiv(v1, v2))
+              // we simply map all arithmetic expressions to equivalent expressions as used by z3
+            case Plus() => SymValue(ctx.mkAdd(v1, v2))
+            case Sub() => SymValue(ctx.mkSub(v1, v2))
+            case Mul() => SymValue(ctx.mkMul(v1, v2))
+            case Div() => SymValue(ctx.mkDiv(v1, v2))
           }
         case CallExp(name, args) =>
           val d = p.funcs.get(name)
@@ -192,14 +204,14 @@ class SymbolicInterpreter(symCtx: Context = new Context(new util.HashMap[String,
           val v1 = interpAExp(e1, env).e.asInstanceOf[ArithExpr]
           val v2 = interpAExp(e2, env).e.asInstanceOf[ArithExpr]
           op match {
-            case GtOp() => SymValue(symCtx.mkGt(v1, v2))
-            case EqOp() => SymValue(symCtx.mkEq(v1, v2))
+            case GtOp() => SymValue(ctx.mkGt(v1, v2))
+            case EqOp() => SymValue(ctx.mkEq(v1, v2))
           }
       }
     }
 
     val res = interpStm(p.stm, env)
-    val s = symCtx.mkSolver()
+    val s = ctx.mkSolver()
     s.add(pc.formula)
     val model = {
       s.check()
@@ -219,6 +231,12 @@ class SymbolicInterpreter(symCtx: Context = new Context(new util.HashMap[String,
     res
   }
 
+  /**
+    * function to return a string representation of a model(that is concrete values) that satisfies the model.
+    * @param m the model that z3 returns based on the constraints in the path constraint
+    * @param symbols a set containing all symbols that are used in the execution
+    * @return a string representation of the model
+    */
   def modelToString(m: Model, symbols: mutable.Set[IntExpr]): String = {
     val symValPairs = symbols.map((sym: IntExpr) => (sym.getSExpr, m.eval(sym, true)))
     symValPairs.toString()
