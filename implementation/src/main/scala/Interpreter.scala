@@ -48,7 +48,7 @@ class Interpreter {
     def interpWhile(cond: BExp, stm: Stm, venv: mutable.HashMap[Var, IntValue]): Value = {
       def dowork(): Value = {
         val v = interpBexp(cond, venv)
-        if (v.b) interpStm(stm, venv) else Unit()
+        if (v.b) {interpStm(stm, venv); dowork()} else Unit()
       }
 
       dowork()
