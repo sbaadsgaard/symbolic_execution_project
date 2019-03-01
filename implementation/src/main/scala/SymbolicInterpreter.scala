@@ -18,12 +18,13 @@ class SymbolicInterpreter(ctx: Context = new Context(new util.HashMap[String, St
                  pc: PathConstraint = new PathConstraint(ctx, ctx.mkTrue()),
                  symbols: mutable.Set[IntExpr] = mutable.Set(),
                  maxBranches: Int,
-                 currBranches: Int): Value = {
+                 currBranches: Int = 1): Value = {
 
 
     def interpStm(stm: Stm,
                   env: mutable.HashMap[Var, SymValue],
-                  next: Option[Stm] = None): Value = {
+                  next: Option[Stm] = None,
+                  cb: Int = currBranches): Value = {
 
       stm match {
         case ExpStm(e) => interpAExp(e, env)
@@ -46,24 +47,24 @@ class SymbolicInterpreter(ctx: Context = new Context(new util.HashMap[String, St
               val elseBranch = s.check(fNeg)
               if (thenBranch == Status.SATISFIABLE) {
                 if (elseBranch == Status.SATISFIABLE) {
-                  next match {
-                    case None =>
-                      interpProg(Prog(p.funcs, elseStm), env.clone(), pc.forkPathConstraint(fNeg), symbols.clone(), maxBranches, currBranches+1)
-                    case Some(statement) =>
-                      val pr = Prog(p.funcs, CompStm(elseStm, statement))
-                      interpProg(pr, env.clone(), pc.forkPathConstraint(fNeg), symbols.clone(), maxBranches, currBranches + 1)
+                  if (cb < maxBranches) {
+                    next match {
+                      case None =>
+                        interpProg(Prog(p.funcs, elseStm), env.clone(), pc.forkPathConstraint(fNeg), symbols.clone(), maxBranches, currBranches = cb + 1)
+                      case Some(statement) =>
+                        val pr = Prog(p.funcs, CompStm(elseStm, statement))
+                        interpProg(pr, env.clone(), pc.forkPathConstraint(fNeg), symbols.clone(), maxBranches, currBranches = cb + 1)
+                    }
+                  } else {
+                    println("max branches reached - ignoring further branches")
                   }
                 }
                 pc.addConstraint(f)
-                interpStm(thenStm, env, next)
+                interpStm(thenStm, env, next, if (cb < maxBranches) cb + 1 else cb)
               } else if (elseBranch == Status.SATISFIABLE) {
-                next match {
-                  case None => interpProg(Prog(p.funcs, elseStm), env.clone(), pc.forkPathConstraint(fNeg), symbols.clone(), maxBranches, currBranches + 1)
-                  case Some(statement) =>
-                    val pr = Prog(p.funcs, CompStm(elseStm, statement))
-                    interpProg(pr, env.clone(), pc.forkPathConstraint(fNeg), symbols.clone(), maxBranches, currBranches + 1)
-                }
-              } else {
+                  pc.addConstraint(fNeg)
+                  interpStm(elseStm, env, next, cb)
+                } else {
                 // TODO figure out what to do with this case. Will it ever happen? and if so, we should handle it more gracefully than throwing an exception
                 s.add(pc.formula)
                 val model = s.getModel
@@ -76,18 +77,18 @@ class SymbolicInterpreter(ctx: Context = new Context(new util.HashMap[String, St
               }
           }
 
-        case ws: WhileStm => interpWhile(ws, env, next)
+        case ws: WhileStm => interpWhile(ws, env, next, cb)
         case _ => throw new UnsupportedOperationException("method not implemented")
       }
     }
     //TODO refactor this method and the code for if statements, to avoid duplicate code
     /**
-      * @param ws the while statement to be interpreted
-      * @param env current version of our environment(mapping from vars to symbolic values)
+      * @param ws   the while statement to be interpreted
+      * @param env  current version of our environment(mapping from vars to symbolic values)
       * @param next the expression to be executed after this while statement (None if there is nothing to be executed, Some(stm) if there is
       * @return a Value (specifcally either Unit or SymValue)
       */
-    def interpWhile(ws: Grammar.Stm.WhileStm, env: mutable.HashMap[Var, SymValue], next: Option[Stm]): Value = {
+    def interpWhile(ws: Grammar.Stm.WhileStm, env: mutable.HashMap[Var, SymValue], next: Option[Stm], cb: Int): Value = {
       def dowork(): Value = {
         val cond = interpBExp(ws.c, env)
         cond match {
@@ -103,12 +104,12 @@ class SymbolicInterpreter(ctx: Context = new Context(new util.HashMap[String, St
             val endBranch = s.check(fNeg)
             if (endBranch == Status.SATISFIABLE) {
               if (continueBranch == Status.SATISFIABLE) {
-                if (currBranches <= maxBranches) {
+                if (cb < maxBranches) {
                   val pr = next match {
                     case None => Prog(p.funcs, CompStm(ws.doStm, ws))
                     case Some(stm) => Prog(p.funcs, CompStm(ws.doStm, CompStm(ws, stm)))
                   }
-                  interpProg(pr, env.clone(), pc.forkPathConstraint(f), symbols.clone(), maxBranches, currBranches + 1)
+                  interpProg(pr, env.clone(), pc.forkPathConstraint(f), symbols.clone(), maxBranches, currBranches = cb + 1)
                 } else {
                   println("max branches reached - ignoring further loops")
                 }
@@ -116,15 +117,15 @@ class SymbolicInterpreter(ctx: Context = new Context(new util.HashMap[String, St
               pc.addConstraint(fNeg)
               next match {
                 case None => Unit()
-                case Some(stm) => interpStm(stm, env, next)
+                case Some(stm) => interpStm(stm, env, next, if (cb < maxBranches) cb + 1 else cb)
               }
             } else if (continueBranch == Status.SATISFIABLE) {
-              if (currBranches <= maxBranches) {
+              if (cb < maxBranches) {
                 val pr = next match {
                   case None => Prog(p.funcs, CompStm(ws.doStm, ws))
                   case Some(stm) => Prog(p.funcs, CompStm(ws.doStm, CompStm(ws, stm)))
                 }
-                interpProg(pr, env.clone(), pc.forkPathConstraint(f), symbols.clone(), maxBranches, currBranches + 1)
+                interpProg(pr, env.clone(), pc.forkPathConstraint(f), symbols.clone(), maxBranches, currBranches = cb + 1)
               } else {
                 println("max branches reached - ignoring further loops")
                 Unit()
@@ -141,11 +142,12 @@ class SymbolicInterpreter(ctx: Context = new Context(new util.HashMap[String, St
             }
         }
       }
+
       dowork()
     }
 
     /**
-      * @param e the expression to be interpreted
+      * @param e   the expression to be interpreted
       * @param env the current version of the environment(mapping from vars to symbolic values)
       * @return a SymValue which is an arithmetic expressions over integers and symbols
       */
@@ -167,7 +169,7 @@ class SymbolicInterpreter(ctx: Context = new Context(new util.HashMap[String, St
           val v1 = interpAExp(bin.e1, env).e.asInstanceOf[ArithExpr]
           val v2 = interpAExp(bin.e2, env).e.asInstanceOf[ArithExpr]
           bin.op match {
-              // we simply map all arithmetic expressions to equivalent expressions as used by z3
+            // we simply map all arithmetic expressions to equivalent expressions as used by z3
             case Plus() => SymValue(ctx.mkAdd(v1, v2))
             case Sub() => SymValue(ctx.mkSub(v1, v2))
             case Mul() => SymValue(ctx.mkMul(v1, v2))
@@ -233,12 +235,13 @@ class SymbolicInterpreter(ctx: Context = new Context(new util.HashMap[String, St
 
   /**
     * function to return a string representation of a model(that is concrete values) that satisfies the model.
-    * @param m the model that z3 returns based on the constraints in the path constraint
+    *
+    * @param m       the model that z3 returns based on the constraints in the path constraint
     * @param symbols a set containing all symbols that are used in the execution
     * @return a string representation of the model
     */
   def modelToString(m: Model, symbols: mutable.Set[IntExpr]): String = {
-    val symValPairs = symbols.map((sym: IntExpr) => (sym.getSExpr, m.eval(sym, true)))
+    val symValPairs = symbols.map((sym: IntExpr) => (sym.getSExpr, m.eval(sym, false)))
     symValPairs.toString()
   }
 

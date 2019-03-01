@@ -135,12 +135,12 @@ object Driver extends App {
    *  var res = 0
    *  if (z == 2*x) {
    *    if (x > y + 10) {
-   *      res = 1
-   *    } else {
    *      res = 2
+   *    } else {
+   *      res = 4
    *    }
    *  } else {
-   *    res = 3
+   *    res = 6
    *  }
    *  res*2
    * }
@@ -216,7 +216,48 @@ object Driver extends App {
     )),
     ExpStm(CallExp("pow", List(Sym("a"), Sym("b"))))
   )
+
+  /*
+   * fun fib(n) = {
+   *  if (2 > n) {
+   *    n
+   *  } else
+   *    fib(n-1) + fib(n-2)
+   *  }
+   * }
+   * fib(3)
+   */
+  val testSymProg5 = Prog(
+    mutable.HashMap("fib" -> FDecl("fib", List(Var("n")),
+      IfStm(
+        BExp.BinExp(Integer(2), Var("n"), GtOp()),
+        ExpStm(Var("n")),
+        ExpStm(AExp.BinExp(
+          CallExp("fib", List(AExp.BinExp(Var("n"), Integer(1), Sub()))),
+          CallExp("fib", List(AExp.BinExp(Var("n"), Integer(2), Sub()))),
+          Plus()
+        ))
+      )
+    )),
+    ExpStm(CallExp("fib", List(Sym("n"))))
+  )
+
+  val testSymProg6 = Prog(
+    mutable.HashMap("fac" -> FDecl("fac", List(Var("n")),
+      IfStm(
+        BExp.BinExp(Integer(0), Var("n"), EqOp()),
+        ExpStm(Integer(1)),
+        ExpStm(AExp.BinExp(
+          Var("n"),
+          CallExp("fac", List(AExp.BinExp(Var("n"), Integer(1), Sub()))),
+          Mul()
+        ))
+      )
+    )),
+    ExpStm(CallExp("fac", List(Sym("n"))))
+  )
+
   val resConcrete = concreteInterp.interpProg(testProg)
-  val resSymbolic = symbolicInterp.interpProg(testSymProg4, maxBranches = 10)
+  val resSymbolic = symbolicInterp.interpProg(testSymProg6, maxBranches = 5)
 
 }
