@@ -4,7 +4,7 @@ import AExp._
 import BExp._
 import Aop._
 import Bop._
-import Value._
+import ConcreteValue._
 import Stm._
 import scala.collection.mutable
 
@@ -20,12 +20,12 @@ class Interpreter {
 
 
 
-  def interpProg(p: Prog): Value = {
+  def interpProg(p: Prog): ConcreteValue = {
 
     /*
       We interpret a statement in the current environment @venv and return a possibly updated environment
      */
-    def interpStm(statement: Stm, venv: mutable.HashMap[Var, IntValue]): Value = {
+    def interpStm(statement: Stm, venv: mutable.HashMap[Var, IntValue]): ConcreteValue = {
       statement match {
         case ExpStm(e) => interpAexp(e, venv)
         case AssignStm(id, valExp) =>
@@ -42,11 +42,14 @@ class Interpreter {
         case WhileStm(cond, stm) =>
           interpWhile(cond, stm, venv)
 
+        case AssertStm(c) =>
+          val assert = interpBexp(c, venv)
+          if (assert.b) Unit() else {println(s"Assertion violation: ${c}"); ErrorValue()}
       }
     }
 
-    def interpWhile(cond: BExp, stm: Stm, venv: mutable.HashMap[Var, IntValue]): Value = {
-      def dowork(): Value = {
+    def interpWhile(cond: BExp, stm: Stm, venv: mutable.HashMap[Var, IntValue]): ConcreteValue = {
+      def dowork(): ConcreteValue = {
         val v = interpBexp(cond, venv)
         if (v.b) {interpStm(stm, venv); dowork()} else Unit()
       }

@@ -1,5 +1,5 @@
 import scala.collection.mutable
-import com.microsoft.z3.{ArithExpr, Expr}
+import com.microsoft.z3.{ArithExpr, BoolExpr}
 
 /**
   * Grammar that defines SImPL
@@ -7,20 +7,27 @@ import com.microsoft.z3.{ArithExpr, Expr}
 
 object Grammar {
 
-  sealed trait Value
+  sealed trait ConcreteValue
 
-  object Value {
+  object ConcreteValue {
 
-    case class SymValue(e: Expr) extends Value
+    case class IntValue(x: Int) extends ConcreteValue
 
-    case class IntValue(x: Int) extends Value
+    case class BoolValue(b: Boolean) extends ConcreteValue
 
-    case class BoolValue(b: Boolean) extends Value
+    case class Unit() extends ConcreteValue
 
-    case class Unit() extends Value
+    case class ErrorValue() extends ConcreteValue
 
-    case class ErrorValue() extends Value
+  }
 
+  sealed trait SymbolicValue
+
+  object SymbolicValue {
+    case class SymAExpr(e: ArithExpr) extends SymbolicValue
+    case class SymBexpr(e: BoolExpr) extends SymbolicValue
+    case class ErrorValue() extends SymbolicValue
+    case class Unit() extends SymbolicValue
   }
 
   sealed trait BExp
@@ -56,7 +63,6 @@ object Grammar {
     case class BinExp(e1: AExp, e2: AExp, op: Aop) extends AExp
 
     case class CallExp(name: String, args: List[AExp]) extends AExp
-
   }
 
   sealed trait Aop
@@ -86,6 +92,8 @@ object Grammar {
     case class IfStm(c: BExp, thenStm: Stm, elseSTm: Stm) extends Stm
 
     case class WhileStm(c: BExp, doStm: Stm) extends Stm
+
+    case class AssertStm(c: BExp) extends Stm
 
   }
 

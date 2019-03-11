@@ -217,7 +217,7 @@ object Driver extends App {
     ExpStm(CallExp("pow", List(Sym("a"), Sym("b"))))
   )
 
-  /*
+  /*f
    * fun fib(n) = {
    *  if (2 > n) {
    *    n
@@ -257,7 +257,32 @@ object Driver extends App {
     ExpStm(CallExp("fac", List(Sym("n"))))
   )
 
+  val testSymProg7 = Prog(
+    mutable.HashMap("double" -> FDecl("double", List(Var("n")),
+      ExpStm(
+        AExp.BinExp(
+          Integer(2),
+          Var("n"),
+          Mul()
+        )
+      )
+    )),
+    CompStm(
+      AssignStm(
+        Var("a"),
+        CallExp("double", List(Sym("n")))
+      ),
+      AssertStm(
+        BExp.BinExp(
+          Var("a"),
+          Integer(0),
+          GtOp()
+        )
+      )
+    )
+  )
+
   val resConcrete = concreteInterp.interpProg(testProg)
-  val resSymbolic = symbolicInterp.interpProg(testSymProg6, maxBranches = 5)
+  val resSymbolic = symbolicInterp.interpProg(testSymProg7, maxBranches = 10)
 
 }

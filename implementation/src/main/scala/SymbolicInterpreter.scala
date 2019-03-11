@@ -5,8 +5,8 @@ import Grammar.Aop._
 import Grammar.BExp._
 import Grammar.Bop._
 import Grammar.Stm._
-import Grammar.Value._
-import Grammar._
+import Grammar.SymbolicValue._
+import Grammar.{SymbolicValue, _}
 import com.microsoft.z3._
 
 import scala.collection.mutable
@@ -14,17 +14,17 @@ import scala.collection.mutable
 
 class SymbolicInterpreter(ctx: Context = new Context(new util.HashMap[String, String])) {
   def interpProg(p: Prog,
-                 env: mutable.HashMap[Var, SymValue] = mutable.HashMap(),
+                 env: mutable.HashMap[Var, SymAExpr] = mutable.HashMap(),
                  pc: PathConstraint = new PathConstraint(ctx, ctx.mkTrue()),
                  symbols: mutable.Set[IntExpr] = mutable.Set(),
                  maxBranches: Int,
-                 currBranches: Int = 1): Value = {
+                 currBranches: Int = 1): SymbolicValue = {
 
 
     def interpStm(stm: Stm,
-                  env: mutable.HashMap[Var, SymValue],
+                  env: mutable.HashMap[Var, SymAExpr],
                   next: Option[Stm] = None,
-                  cb: Int = currBranches): Value = {
+                  cb: Int = currBranches): SymbolicValue = {
 
       stm match {
         case ExpStm(e) => interpAExp(e, env)
@@ -37,76 +37,95 @@ class SymbolicInterpreter(ctx: Context = new Context(new util.HashMap[String, St
           interpStm(s2, env)
         case IfStm(c, thenStm, elseStm) =>
           val cond = interpBExp(c, env)
-          cond match {
-            case BoolValue(b) => if (b) interpStm(thenStm, env) else interpStm(elseStm, env)
-            case SymValue(e: BoolExpr) =>
-              val f = ctx.mkAnd(pc.formula, e)
-              val fNeg = ctx.mkAnd(pc.formula, ctx.mkNot(e))
-              val s = ctx.mkSolver()
-              val thenBranch = s.check(f)
-              val elseBranch = s.check(fNeg)
-              if (thenBranch == Status.SATISFIABLE) {
-                if (elseBranch == Status.SATISFIABLE) {
-                  if (cb < maxBranches) {
-                    next match {
-                      case None =>
-                        interpProg(Prog(p.funcs, elseStm), env.clone(), pc.forkPathConstraint(fNeg), symbols.clone(), maxBranches, currBranches = cb + 1)
-                      case Some(statement) =>
-                        val pr = Prog(p.funcs, CompStm(elseStm, statement))
-                        interpProg(pr, env.clone(), pc.forkPathConstraint(fNeg), symbols.clone(), maxBranches, currBranches = cb + 1)
-                    }
-                  } else {
-                    println("max branches reached - ignoring further branches")
+          if (cond.e.isTrue) interpStm(thenStm, env)
+          else if (cond.e.isFalse) interpStm(elseStm, env)
+          else {
+            val f = ctx.mkAnd(pc.formula, cond.e)
+            val fNeg = ctx.mkAnd(pc.formula, ctx.mkNot(cond.e))
+            val s = ctx.mkSolver()
+            val thenBranch = s.check(f)
+            val elseBranch = s.check(fNeg)
+            if (thenBranch == Status.SATISFIABLE) {
+              if (elseBranch == Status.SATISFIABLE) {
+                if (cb < maxBranches) {
+                  next match {
+                    case None =>
+                      interpProg(Prog(p.funcs, elseStm), env.clone(), pc.forkPathConstraint(fNeg), symbols.clone(), maxBranches, currBranches = cb + 1)
+                    case Some(statement) =>
+                      val pr = Prog(p.funcs, CompStm(elseStm, statement))
+                      interpProg(pr, env.clone(), pc.forkPathConstraint(fNeg), symbols.clone(), maxBranches, currBranches = cb + 1)
                   }
-                } else if (elseBranch == Status.UNSATISFIABLE) {
-                  println(s"Else branch not satisfiable: $fNeg")
                 } else {
-                  println(s"Satisfiabiliy of else branch unknown: $fNeg")
+                  println("max branches reached - ignoring further branches")
                 }
-                pc.addConstraint(f)
-                interpStm(thenStm, env, next, if (cb < maxBranches) cb + 1 else cb)
-
-              } else if (thenBranch == Status.UNSATISFIABLE) {
-                println(s"Then branch not satisfiable: $f")
-                if (elseBranch == Status.SATISFIABLE) {
-                  pc.addConstraint(fNeg)
-                  interpStm(elseStm, env, next, cb)
-                } else if (elseBranch == Status.UNSATISFIABLE) {
-                  throw new IllegalStateException(s"Current state is infeasible, both branches unsatisfiable:  \n" +
-                    s"Then branch PC: $f \n" +
-                    s"else branch PC: $fNeg"
-                  )
-                } else {
-                  println(
-                    s"Else branch satisfiability unknown: $fNeg \n" +
-                      "Dont know how to continue"
-                  )
-                  ErrorValue()
-                }
+              } else if (elseBranch == Status.UNSATISFIABLE) {
+                println(s"Else branch not satisfiable: $fNeg")
               } else {
-                // Then branch should be unknown
-                println(s"Then branch satisfiability unknown: $f")
-                if (elseBranch == Status.SATISFIABLE) {
-                  pc.addConstraint(fNeg)
-                  interpStm(elseStm, env, next, cb)
-                } else if (elseBranch == Status.UNSATISFIABLE) {
-                  println(
-                    s"Else branch not satisfiable: $fNeg \n" +
-                      "Dont know how to continue"
-                  )
-                  ErrorValue()
-                } else {
-                  // both should be unknown
-                  println(
-                    s"Else branch satisfiability unknown: $fNeg \n" +
-                      "Dont know how to continue"
-                  )
-                  ErrorValue()
-                }
+                println(s"Satisfiabiliy of else branch unknown: $fNeg")
               }
+              pc.addConstraint(f)
+              interpStm(thenStm, env, next, if (cb < maxBranches) cb + 1 else cb)
+
+            } else if (thenBranch == Status.UNSATISFIABLE) {
+              println(s"Then branch not satisfiable: $f")
+              if (elseBranch == Status.SATISFIABLE) {
+                pc.addConstraint(fNeg)
+                interpStm(elseStm, env, next, cb)
+              } else if (elseBranch == Status.UNSATISFIABLE) {
+                throw new IllegalStateException(s"Current state is infeasible, both branches unsatisfiable:  \n" +
+                  s"Then branch PC: $f \n" +
+                  s"else branch PC: $fNeg"
+                )
+              } else {
+                println(
+                  s"Else branch satisfiability unknown: $fNeg \n" +
+                    "Dont know how to continue"
+                )
+                ErrorValue()
+              }
+            } else {
+              // Then branch should be unknown
+              println(s"Then branch satisfiability unknown: $f")
+              if (elseBranch == Status.SATISFIABLE) {
+                pc.addConstraint(fNeg)
+                interpStm(elseStm, env, next, cb)
+              } else if (elseBranch == Status.UNSATISFIABLE) {
+                println(
+                  s"Else branch not satisfiable: $fNeg \n" +
+                    "Dont know how to continue"
+                )
+                ErrorValue()
+              } else {
+                // both should be unknown
+                println(
+                  s"Else branch satisfiability unknown: $fNeg \n" +
+                    "Dont know how to continue"
+                )
+                ErrorValue()
+              }
+            }
           }
 
         case ws: WhileStm => interpWhile(ws, env, next, cb)
+        case AssertStm(c) =>
+          val cond = interpBExp(c, env)
+          // to check assertion x > 2, we construct the negation x <= 2 and asks if this is satisfiable.
+          val f = ctx.mkAnd(pc.formula, ctx.mkNot(cond.e))
+          val s = ctx.mkSolver()
+          val assertRes = s.check(f)
+        assertRes match {
+          case Status.SATISFIABLE =>
+            val model = s.getModel
+            println(
+              s"Assertion violation: ${cond.e} \n" +
+              s"model that causes assertion violation: ${modelToSet(model, symbols).toString()}"
+            )
+            ErrorValue()
+          case Status.UNSATISFIABLE => Unit()
+          case Status.UNKNOWN =>
+            println("Cannot determine if assertion is satisfied")
+            ErrorValue()
+        }
         case _ => throw new UnsupportedOperationException("method not implemented")
       }
     }
@@ -117,96 +136,96 @@ class SymbolicInterpreter(ctx: Context = new Context(new util.HashMap[String, St
       * @param next the expression to be executed after this while statement (None if there is nothing to be executed, Some(stm) if there is
       * @return a Value (specifcally either Unit or SymValue)
       */
-    def interpWhile(ws: Grammar.Stm.WhileStm, env: mutable.HashMap[Var, SymValue], next: Option[Stm], cb: Int): Value = {
-      def dowork(): Value = {
+    def interpWhile(ws: Grammar.Stm.WhileStm, env: mutable.HashMap[Var, SymAExpr], next: Option[Stm], cb: Int): SymbolicValue = {
+      def dowork(): SymbolicValue = {
         val cond = interpBExp(ws.c, env)
-        cond match {
-          case BoolValue(b) => if (b) {
-            interpStm(ws.doStm, env)
-            dowork()
-          } else Unit()
-          case SymValue(e: BoolExpr) =>
-            val f = ctx.mkAnd(pc.formula, e)
-            val fNeg = ctx.mkAnd(pc.formula, ctx.mkNot(e))
-            val s = ctx.mkSolver()
-            val continueBranch = s.check(f)
-            val endBranch = s.check(fNeg)
-            if (endBranch == Status.SATISFIABLE) {
-              if (continueBranch == Status.SATISFIABLE) {
-                if (cb < maxBranches) {
-                  val pr = next match {
-                    case None => Prog(p.funcs, CompStm(ws.doStm, ws))
-                    case Some(stm) => Prog(p.funcs, CompStm(ws.doStm, CompStm(ws, stm)))
-                  }
-                  interpProg(pr, env.clone(), pc.forkPathConstraint(f), symbols.clone(), maxBranches, currBranches = cb + 1)
-                } else {
-                  println("max branches reached - ignoring further loops")
+        if (cond.e.isTrue) {
+          interpStm(ws.doStm, env)
+          dowork()
+        } else if (cond.e.isFalse) {
+          Unit()
+        } else {
+          val f = ctx.mkAnd(pc.formula, cond.e)
+          val fNeg = ctx.mkAnd(pc.formula, ctx.mkNot(cond.e))
+          val s = ctx.mkSolver()
+          val continueBranch = s.check(f)
+          val endBranch = s.check(fNeg)
+          if (endBranch == Status.SATISFIABLE) {
+            if (continueBranch == Status.SATISFIABLE) {
+              if (cb < maxBranches) {
+                val pr = next match {
+                  case None => Prog(p.funcs, CompStm(ws.doStm, ws))
+                  case Some(stm) => Prog(p.funcs, CompStm(ws.doStm, CompStm(ws, stm)))
                 }
-              } else if (continueBranch == Status.UNSATISFIABLE) {
-                println(s"Continue branch not satisfiable: $f")
+                interpProg(pr, env.clone(), pc.forkPathConstraint(f), symbols.clone(), maxBranches, currBranches = cb + 1)
               } else {
-                println(s"Continue branch satisfiability unknown: $f")
+                println("max branches reached - ignoring further loops")
               }
-              pc.addConstraint(fNeg)
-              next match {
-                case None => Unit()
-                case Some(stm) => interpStm(stm, env, next, if (cb < maxBranches) cb + 1 else cb)
-              }
-            } else if (endBranch == Status.UNSATISFIABLE) {
-              println(s"End branch not satisfiable: $fNeg")
-              if (continueBranch == Status.SATISFIABLE) {
-                if (cb < maxBranches) {
-                  val pr = next match {
-                    case None => Prog(p.funcs, CompStm(ws.doStm, ws))
-                    case Some(stm) => Prog(p.funcs, CompStm(ws.doStm, CompStm(ws, stm)))
-                  }
-                  interpProg(pr, env.clone(), pc.forkPathConstraint(f), symbols.clone(), maxBranches, currBranches = cb + 1)
-                } else {
-                  println("max branches reached - ignoring further loops")
-                  Unit()
-                }
-              } else if (continueBranch == Status.UNSATISFIABLE) {
-                throw new IllegalStateException(
-                  "Current state is infeasible, Both branches are unsatisfiable.\n" +
-                    s"End branch PC: $fNeg \n" +
-                    s"Continue branch PC: $f"
-                )
-              } else {
-                println(
-                  s"Continue branch satisfiability is unknown: $f \n" +
-                    "Dont know how to continue"
-                )
-                ErrorValue()
-              }
-
+            } else if (continueBranch == Status.UNSATISFIABLE) {
+              println(s"Continue branch not satisfiable: $f")
             } else {
-              if (continueBranch == Status.SATISFIABLE) {
-                if (cb < maxBranches) {
-                  val pr = next match {
-                    case None => Prog(p.funcs, CompStm(ws.doStm, ws))
-                    case Some(stm) => Prog(p.funcs, CompStm(ws.doStm, CompStm(ws, stm)))
-                  }
-                  interpProg(pr, env.clone(), pc.forkPathConstraint(f), symbols.clone(), maxBranches, currBranches = cb + 1)
-                } else {
-                  println("max branches reached - ignoring further loops")
-                  Unit()
+              println(s"Continue branch satisfiability unknown: $f")
+            }
+            pc.addConstraint(fNeg)
+            next match {
+              case None => Unit()
+              case Some(stm) => interpStm(stm, env, next, if (cb < maxBranches) cb + 1 else cb)
+            }
+          } else if (endBranch == Status.UNSATISFIABLE) {
+            println(s"End branch not satisfiable: $fNeg")
+            if (continueBranch == Status.SATISFIABLE) {
+              if (cb < maxBranches) {
+                val pr = next match {
+                  case None => Prog(p.funcs, CompStm(ws.doStm, ws))
+                  case Some(stm) => Prog(p.funcs, CompStm(ws.doStm, CompStm(ws, stm)))
                 }
-              } else if (continueBranch == Status.UNSATISFIABLE) {
-                println(
-                  s"Continue branch satisfiability is unknown: $f \n" +
-                  "Dont know how to continue"
-                )
-                ErrorValue()
+                interpProg(pr, env.clone(), pc.forkPathConstraint(f), symbols.clone(), maxBranches, currBranches = cb + 1)
               } else {
-                println(
-                  "Both branches satisfiability is unknown \n" +
+                println("max branches reached - ignoring further loops")
+                Unit()
+              }
+            } else if (continueBranch == Status.UNSATISFIABLE) {
+              throw new IllegalStateException(
+                "Current state is infeasible, Both branches are unsatisfiable.\n" +
+                  s"End branch PC: $fNeg \n" +
+                  s"Continue branch PC: $f"
+              )
+            } else {
+              println(
+                s"Continue branch satisfiability is unknown: $f \n" +
+                  "Dont know how to continue"
+              )
+              ErrorValue()
+            }
+
+          } else {
+            if (continueBranch == Status.SATISFIABLE) {
+              if (cb < maxBranches) {
+                val pr = next match {
+                  case None => Prog(p.funcs, CompStm(ws.doStm, ws))
+                  case Some(stm) => Prog(p.funcs, CompStm(ws.doStm, CompStm(ws, stm)))
+                }
+                interpProg(pr, env.clone(), pc.forkPathConstraint(f), symbols.clone(), maxBranches, currBranches = cb + 1)
+              } else {
+                println("max branches reached - ignoring further loops")
+                Unit()
+              }
+            } else if (continueBranch == Status.UNSATISFIABLE) {
+              println(
+                s"Continue branch satisfiability is unknown: $f \n" +
+                  "Dont know how to continue"
+              )
+              ErrorValue()
+            } else {
+              println(
+                "Both branches satisfiability is unknown \n" +
                   s"End branch: $fNeg" +
                   s"Continue branch: $f \n" +
                   "Dont know how to continue"
-                )
-                ErrorValue()
-              }
+              )
+              ErrorValue()
             }
+          }
         }
       }
 
@@ -218,14 +237,14 @@ class SymbolicInterpreter(ctx: Context = new Context(new util.HashMap[String, St
       * @param env the current version of the environment(mapping from vars to symbolic values)
       * @return a SymValue which is an arithmetic expressions over integers and symbols
       */
-    def interpAExp(e: AExp, env: mutable.HashMap[Var, SymValue]): SymValue = {
+    def interpAExp(e: AExp, env: mutable.HashMap[Var, SymAExpr]): SymAExpr = {
 
       e match {
-        case Integer(i) => SymValue(ctx.mkInt(i));
+        case Integer(i) => SymAExpr(ctx.mkInt(i));
         case Sym(sym) =>
           val const = ctx.mkIntConst(sym)
           symbols.add(const)
-          SymValue(const)
+          SymAExpr(const)
         case v: Var =>
           val opt = env.get(v)
           opt match {
@@ -233,14 +252,14 @@ class SymbolicInterpreter(ctx: Context = new Context(new util.HashMap[String, St
             case Some(value) => value
           }
         case bin: AExp.BinExp =>
-          val v1 = interpAExp(bin.e1, env).e.asInstanceOf[ArithExpr]
-          val v2 = interpAExp(bin.e2, env).e.asInstanceOf[ArithExpr]
+          val v1 = interpAExp(bin.e1, env).e
+          val v2 = interpAExp(bin.e2, env).e
           bin.op match {
             // we simply map all arithmetic expressions to equivalent expressions as used by z3
-            case Plus() => SymValue(ctx.mkAdd(v1, v2))
-            case Sub() => SymValue(ctx.mkSub(v1, v2))
-            case Mul() => SymValue(ctx.mkMul(v1, v2))
-            case Div() => SymValue(ctx.mkDiv(v1, v2))
+            case Plus() => SymAExpr(ctx.mkAdd(v1, v2))
+            case Sub() => SymAExpr(ctx.mkSub(v1, v2))
+            case Mul() => SymAExpr(ctx.mkMul(v1, v2))
+            case Div() => SymAExpr(ctx.mkDiv(v1, v2))
           }
         case CallExp(name, args) =>
           //TODO refactor this to single fold
@@ -250,7 +269,7 @@ class SymbolicInterpreter(ctx: Context = new Context(new util.HashMap[String, St
             case Some(f) =>
               val vals = args.map((exp: AExp) => interpAExp(exp, env))
               val argValPairs = f.args zip vals
-              val addTo = (m: mutable.HashMap[Var, SymValue], t: (Var, SymValue)) => {
+              val addTo = (m: mutable.HashMap[Var, SymAExpr], t: (Var, SymAExpr)) => {
                 m.update(t._1, t._2)
                 m
               }
@@ -258,8 +277,8 @@ class SymbolicInterpreter(ctx: Context = new Context(new util.HashMap[String, St
               val newEnv = argValPairs.foldLeft(venvCopy)(addTo)
               val res = interpStm(f.fbody, newEnv)
               res match {
-                case sv: SymValue => sv
-                case _ => throw new IllegalArgumentException("functions must return symbolic values")
+                case sv: SymAExpr => sv
+                case _ => throw new IllegalArgumentException("functions must return symbolic expressions")
               }
           }
         case _ => throw new UnsupportedOperationException("method not implemented")
@@ -267,15 +286,15 @@ class SymbolicInterpreter(ctx: Context = new Context(new util.HashMap[String, St
     }
 
 
-    def interpBExp(e: BExp, env: mutable.HashMap[Var, SymValue]): Value = {
+    def interpBExp(e: BExp, env: mutable.HashMap[Var, SymAExpr]): SymBexpr = {
       e match {
-        case Bool(b) => BoolValue(b)
+        case Bool(b) => SymbolicValue.SymBexpr(ctx.mkBool(b))
         case BExp.BinExp(e1, e2, op) =>
-          val v1 = interpAExp(e1, env).e.asInstanceOf[ArithExpr]
-          val v2 = interpAExp(e2, env).e.asInstanceOf[ArithExpr]
+          val v1 = interpAExp(e1, env).e
+          val v2 = interpAExp(e2, env).e
           op match {
-            case GtOp() => SymValue(ctx.mkGt(v1, v2))
-            case EqOp() => SymValue(ctx.mkEq(v1, v2))
+            case GtOp() => SymBexpr(ctx.mkGt(v1, v2))
+            case EqOp() => SymBexpr(ctx.mkEq(v1, v2))
           }
       }
     }
@@ -291,7 +310,7 @@ class SymbolicInterpreter(ctx: Context = new Context(new util.HashMap[String, St
     val msg = "******************************* \n" +
       s"execution returned: ${
         res match {
-          case SymValue(e) => e.simplify()
+          case SymAExpr(e) => e.simplify()
           case _ => res
         }
       } \n" +
