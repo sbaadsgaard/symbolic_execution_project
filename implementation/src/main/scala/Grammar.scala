@@ -19,6 +19,8 @@ object Grammar {
 
     case class Unit() extends Value
 
+    case class ErrorValue() extends Value
+
   }
 
   sealed trait BExp

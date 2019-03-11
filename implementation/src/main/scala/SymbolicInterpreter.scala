@@ -58,22 +58,51 @@ class SymbolicInterpreter(ctx: Context = new Context(new util.HashMap[String, St
                   } else {
                     println("max branches reached - ignoring further branches")
                   }
+                } else if (elseBranch == Status.UNSATISFIABLE) {
+                  println(s"Else branch not satisfiable: $fNeg")
+                } else {
+                  println(s"Satisfiabiliy of else branch unknown: $fNeg")
                 }
                 pc.addConstraint(f)
                 interpStm(thenStm, env, next, if (cb < maxBranches) cb + 1 else cb)
-              } else if (elseBranch == Status.SATISFIABLE) {
+
+              } else if (thenBranch == Status.UNSATISFIABLE) {
+                println(s"Then branch not satisfiable: $f")
+                if (elseBranch == Status.SATISFIABLE) {
                   pc.addConstraint(fNeg)
                   interpStm(elseStm, env, next, cb)
+                } else if (elseBranch == Status.UNSATISFIABLE) {
+                  throw new IllegalStateException(s"Current state is infeasible, both branches unsatisfiable:  \n" +
+                    s"Then branch PC: $f \n" +
+                    s"else branch PC: $fNeg"
+                  )
                 } else {
-                // TODO figure out what to do with this case. Will it ever happen? and if so, we should handle it more gracefully than throwing an exception
-                s.add(pc.formula)
-                val model = s.getModel
-                val msg = "Current state is infeasible\n " +
-                  s"status of then branch: $thenBranch \n" +
-                  s"status of else branch: $elseBranch \n" +
-                  s"path constratint: $pc \n" +
-                  s"model satisfying pc: $model"
-                throw new IllegalStateException(msg)
+                  println(
+                    s"Else branch satisfiability unknown: $fNeg \n" +
+                      "Dont know how to continue"
+                  )
+                  ErrorValue()
+                }
+              } else {
+                // Then branch should be unknown
+                println(s"Then branch satisfiability unknown: $f")
+                if (elseBranch == Status.SATISFIABLE) {
+                  pc.addConstraint(fNeg)
+                  interpStm(elseStm, env, next, cb)
+                } else if (elseBranch == Status.UNSATISFIABLE) {
+                  println(
+                    s"Else branch not satisfiable: $fNeg \n" +
+                      "Dont know how to continue"
+                  )
+                  ErrorValue()
+                } else {
+                  // both should be unknown
+                  println(
+                    s"Else branch satisfiability unknown: $fNeg \n" +
+                      "Dont know how to continue"
+                  )
+                  ErrorValue()
+                }
               }
           }
 
@@ -113,32 +142,70 @@ class SymbolicInterpreter(ctx: Context = new Context(new util.HashMap[String, St
                 } else {
                   println("max branches reached - ignoring further loops")
                 }
+              } else if (continueBranch == Status.UNSATISFIABLE) {
+                println(s"Continue branch not satisfiable: $f")
+              } else {
+                println(s"Continue branch satisfiability unknown: $f")
               }
               pc.addConstraint(fNeg)
               next match {
                 case None => Unit()
                 case Some(stm) => interpStm(stm, env, next, if (cb < maxBranches) cb + 1 else cb)
               }
-            } else if (continueBranch == Status.SATISFIABLE) {
-              if (cb < maxBranches) {
-                val pr = next match {
-                  case None => Prog(p.funcs, CompStm(ws.doStm, ws))
-                  case Some(stm) => Prog(p.funcs, CompStm(ws.doStm, CompStm(ws, stm)))
+            } else if (endBranch == Status.UNSATISFIABLE) {
+              println(s"End branch not satisfiable: $fNeg")
+              if (continueBranch == Status.SATISFIABLE) {
+                if (cb < maxBranches) {
+                  val pr = next match {
+                    case None => Prog(p.funcs, CompStm(ws.doStm, ws))
+                    case Some(stm) => Prog(p.funcs, CompStm(ws.doStm, CompStm(ws, stm)))
+                  }
+                  interpProg(pr, env.clone(), pc.forkPathConstraint(f), symbols.clone(), maxBranches, currBranches = cb + 1)
+                } else {
+                  println("max branches reached - ignoring further loops")
+                  Unit()
                 }
-                interpProg(pr, env.clone(), pc.forkPathConstraint(f), symbols.clone(), maxBranches, currBranches = cb + 1)
+              } else if (continueBranch == Status.UNSATISFIABLE) {
+                throw new IllegalStateException(
+                  "Current state is infeasible, Both branches are unsatisfiable.\n" +
+                    s"End branch PC: $fNeg \n" +
+                    s"Continue branch PC: $f"
+                )
               } else {
-                println("max branches reached - ignoring further loops")
-                Unit()
+                println(
+                  s"Continue branch satisfiability is unknown: $f \n" +
+                    "Dont know how to continue"
+                )
+                ErrorValue()
               }
+
             } else {
-              s.add(pc.formula)
-              val model = s.getModel
-              val msg = "Current state is infeasible\n " +
-                s"status of continue branch: $continueBranch \n" +
-                s"status of end branch: $endBranch \n" +
-                s"path constratint: $pc \n" +
-                s"model satisfying pc: $model"
-              throw new IllegalStateException(msg)
+              if (continueBranch == Status.SATISFIABLE) {
+                if (cb < maxBranches) {
+                  val pr = next match {
+                    case None => Prog(p.funcs, CompStm(ws.doStm, ws))
+                    case Some(stm) => Prog(p.funcs, CompStm(ws.doStm, CompStm(ws, stm)))
+                  }
+                  interpProg(pr, env.clone(), pc.forkPathConstraint(f), symbols.clone(), maxBranches, currBranches = cb + 1)
+                } else {
+                  println("max branches reached - ignoring further loops")
+                  Unit()
+                }
+              } else if (continueBranch == Status.UNSATISFIABLE) {
+                println(
+                  s"Continue branch satisfiability is unknown: $f \n" +
+                  "Dont know how to continue"
+                )
+                ErrorValue()
+              } else {
+                println(
+                  "Both branches satisfiability is unknown \n" +
+                  s"End branch: $fNeg" +
+                  s"Continue branch: $f \n" +
+                  "Dont know how to continue"
+                )
+                ErrorValue()
+              }
             }
         }
       }
@@ -176,6 +243,7 @@ class SymbolicInterpreter(ctx: Context = new Context(new util.HashMap[String, St
             case Div() => SymValue(ctx.mkDiv(v1, v2))
           }
         case CallExp(name, args) =>
+          //TODO refactor this to single fold
           val d = p.funcs.get(name)
           d match {
             case None => throw new NoSuchElementException(s"function $name  not defined")
@@ -219,6 +287,7 @@ class SymbolicInterpreter(ctx: Context = new Context(new util.HashMap[String, St
       s.check()
       s.getModel
     }
+    val concreteValSet = modelToSet(model, symbols)
     val msg = "******************************* \n" +
       s"execution returned: ${
         res match {
@@ -227,7 +296,7 @@ class SymbolicInterpreter(ctx: Context = new Context(new util.HashMap[String, St
         }
       } \n" +
       s"path constraint is: ${pc.formula} \n" +
-      s"model satisfying pc is: ${modelToString(model, symbols)} \n" +
+      s"model satisfying pc is: $concreteValSet \n" +
       "******************************* \n"
     println(msg)
     res
@@ -240,9 +309,13 @@ class SymbolicInterpreter(ctx: Context = new Context(new util.HashMap[String, St
     * @param symbols a set containing all symbols that are used in the execution
     * @return a string representation of the model
     */
-  def modelToString(m: Model, symbols: mutable.Set[IntExpr]): String = {
+  def modelToSet(m: Model, symbols: mutable.Set[IntExpr]) = {
     val symValPairs = symbols.map((sym: IntExpr) => (sym.getSExpr, m.eval(sym, false)))
-    symValPairs.toString()
+    symValPairs
   }
 
 }
+
+
+//TODO Refactor sat/unsat/unknown og tilføj pre/post condition samt assertions. split values op og tilføj error.
+
