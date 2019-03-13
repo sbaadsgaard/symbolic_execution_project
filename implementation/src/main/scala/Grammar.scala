@@ -24,10 +24,20 @@ object Grammar {
   sealed trait SymbolicValue
 
   object SymbolicValue {
-    case class SymAExpr(e: ArithExpr) extends SymbolicValue
-    case class SymBexpr(e: BoolExpr) extends SymbolicValue
-    case class ErrorValue() extends SymbolicValue
+
     case class Unit() extends SymbolicValue
+    sealed trait AValue extends SymbolicValue
+    sealed trait BValue extends SymbolicValue
+
+    object AValue {
+      case class Exp(e: ArithExpr) extends AValue
+      case class ErrorValue() extends AValue
+    }
+
+    object BValue {
+      case class Exp(e: BoolExpr) extends BValue
+      case class ErrorValue() extends BValue
+    }
   }
 
   sealed trait BExp
@@ -97,7 +107,7 @@ object Grammar {
 
   }
 
-  case class FDecl(name: String, args: List[AExp.Var], fbody: Stm)
+  case class FDecl(name: String, args: List[AExp.Var], fbody: Stm, preCondition: Option[BExp] = None)
 
 
   /*

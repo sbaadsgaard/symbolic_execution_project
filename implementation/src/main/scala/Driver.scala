@@ -282,7 +282,24 @@ object Driver extends App {
     )
   )
 
+  val testSymProg8 = Prog(
+    mutable.HashMap(
+      "testme" -> FDecl("testme", List(Var("n")),
+        ExpStm(AExp.BinExp(Integer(1), Var("n"), Div())),
+        Some(BExp.BinExp(Var("n"), Integer(0), GtOp()))
+      )
+    ),
+    CompStm(
+      AssignStm(Var("a"), Sym("a")),
+      IfStm(
+        BExp.BinExp(Var("a"), Integer(0), GtOp()),
+        ExpStm(CallExp("testme", List(Var("a")))),
+        ExpStm(CallExp("testme", List(Var("a")))),
+      )
+    )
+  )
+
   val resConcrete = concreteInterp.interpProg(testProg)
-  val resSymbolic = symbolicInterp.interpProg(testSymProg7, maxBranches = 10)
+  val resSymbolic = symbolicInterp.interpProg(testSymProg8, maxBranches = 10)
 
 }
