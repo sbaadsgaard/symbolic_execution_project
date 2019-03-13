@@ -38,8 +38,14 @@ class SymbolicInterpreter(ctx: Context = new Context(new util.HashMap[String, St
               exp
           }
         case CompStm(s1, s2) =>
-          interpStm(s1, env, next = Some(s2)) //We set the value next to s2, to allow proper forking in ifstm and whilestm
-          interpStm(s2, env)
+          val res = interpStm(s1, env, next = Some(s2)) //We set the value next to s2, to allow proper forking in ifstm and whilestm
+          //If we encounter an error during interp of s1, we should just end this execution. 
+          res match {
+            case SymbolicValue.AValue.ErrorValue() => res
+            case SymbolicValue.BValue.ErrorValue() => res
+            case _ =>
+              interpStm(s2, env)
+          }
         case IfStm(c, thenStm, elseStm) =>
           val cond = interpBExp(c, env)
           cond match {
