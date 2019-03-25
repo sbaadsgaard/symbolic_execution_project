@@ -1,63 +1,60 @@
-In this chapter we will cover some of theory behind symbolic execution. We will start by describing what it means to \emph{symbolically execute} a program and how we deal with potential branching. We will also describe the connection between a symbolic execution of a program, and a concrete one. 
-
+In this chapter we will cover the theory behind symbolic execution. We will start by describing what it means to \emph{symbolically execute} a program and how we deal branching. We will explain the connection between a symbolic execution of a program, and a concrete one. 
+\iffalse 	
 \section{Principles of symbolic execution }
 	
 	In \cite{king76}, symbolic execution is described as a practical approach between simple program testing and program proving. At one extreme, program testing allows the programmer to get some level of confidence in the program, by running it on a well-selected sample of input values, but this sample size will be but a fraction of the possible input values. At the other extreme, program proving will give complete confidence in the programs correctness. To achieve this, one must provide a precise specification of correct behavior, as well as be able to perform perform formal proof steps to conclude that the program satisfies this specification. This is a challenging task, even for relatively simple programs. \emph{Symbolic execution} will serve as a practical middle ground between these two, in which we try to extend simple program testing to cover more general classes of inputs.  
+\fi
 
-\subsection{symbolically executing a program}
+\section{Symbolically executing a program}
 	
+	
+	
+	\iffalse
 	\cite{CadarSen13} describes symbolic execution as follows:
 	
-	Any input to the program will be replaced with \emph{symbolic} values instead of concrete ones. Any operations on the symbolic values, will result in expressions over these, so our program state can be describes as a map from variable names to expressions over the input values. This also means that any return value from the execution will be such an expression. In \cite{king76} an example is given of a program written in a simple language with only signed integer values and arithmetic operations on these. In a symbolic context, this will translate to a program that operates on polynomials with integer coefficients.   
+	Any input to the program will be replaced with \emph{symbolic} values instead of concrete ones. Any operations on the symbolic values, will result in expressions over these, so our program state can be describes as a map from variable names to expressions over the input values. This also means that any return value from the execution will be such an expression. In \cite{king76} an example is given of a program written in a simple language with only signed integer values and arithmetic operations on these. In a symbolic context, this will translate to a program that operates on polynomials with integer coefficients.
 	
-	To illustrate this, we consider the following simple program, that takes parameters $a, b, c$ and computes the sum:
+	\fi   
 	
-	\begin{lstlisting}
-	Fun sum(a, b, c) 
-		var x = a + b
-		var y = b + c
-		var z = x + y - b
-		return z
-	\end{lstlisting} 
+	When we execute a program symbolically, we use symbolic values as input data to the program, instead of concrete values. Instead of referencing concrete values, variables will reference expressions over the symbolic values, and therefore the return value of a program will also be such expressions \cite{CadarSen13}.
 	
-	If we run this program on concrete inputs, say $a = 2, b = 3, c = 4$, we would get the following execution:
 	
-	\begin{enumerate} 
-		\item x = 2 + 3 $\Rightarrow$ y = 5
-		\item y = 3 + 4 $\Rightarrow$ y = 7
-		\item z = 5 + 7 - 3 $\Rightarrow$ z = 9
-		\item return 9
-	\end{enumerate}
 	
-	So we see that on the specific input $a = 2, b = 3, c = 4$, the program returns the correct value.
+	To illustrate this, we consider the following program, that takes parameters $a, b, c$ and computes the sum:
+	
+	
+	\Tree[.{x = a + b} [.{y = b + c} [.{z = x + y - b} [.{return z} ] ] ] ]
+
+	
+	If we run this program on with concrete values, say $a = 2, b = 3, c = 4$, we would get the following execution:
+	First we assign $a+b = 5$ to the variable $x$. Then we assign $b + c = 7$ to the variable $y$· Next we assign $x + y - b = 9$ to variable $z$ and finally we return $z = 9$, which is indeed the sum of 2, 3 and 4. 
 	\\
-	Let us now run the program with symbols. Say that we the input the following symbolic values: $a = \alpha, b = \beta, c = \gamma$.
-	The execution would then look like:
+	Let us now run the program which symbolic input values $\alpha, \beta$ and $\gamma$ for $a, b$ and $c$ respectively. 
 	
-	\begin{enumerate}
-		\item x = $\alpha + \beta$
-		\item y = $\beta  + \gamma$
-		\item z = $(\alpha + \beta) + (\beta + \gamma) - \beta$
-		\item return $\alpha + \beta + \gamma$
-	\end{enumerate}
+	We would then get the following execution: We assign $\alpha + \beta$ to $x$. We then assign $\beta + \gamma$ to $y$. Finally we assign $(\alpha + \beta) + (\beta + \gamma) - \beta$ to $z$ and return $z = \alpha + \beta + \gamma$. We can conclude that the program correctly computes the sum of $a, b$ and $c$, for any possible value of these.
 	
-	From this execution we can actually conclude that the program will return the correct result for any three integers that we give as input. 
-	
-	\subsection{Handling branching in a program}
-		In the previous section we gave an example of a symbolic execution of a simple program that computes the sum of three integers. The program is an extremely simple case, in which the program will behave exactly the same for any possible input values. In reality however, most program languages have some way of allowing branching to happen, and with this feature, we cannot guarantee that the program will behave exactly the same for all inputs. If our program contains an expression like \emph{If $x > 2$ Then ... Else ... }, the program will behave differently depending on whether or nor $x > 2$. To encapsulate this, we introduce a \emph{path-constraint (PC)}, which is a boolean expression that will contain all properties that the input must satisfy to follow the given path. At the beginning of the execution, the $PC$ will be initialized with the value $true$ as no assumptions have been made yet (If we introduce pre-conditions on the input, the $PC$ will of course contain these). 
-		At any \emph{if-expression} with condition $q$, during the execution we will look at the following to expressions
+\section{Path constraints and constraint solving.}
+		In the previous section we gave an example of a symbolic execution of a program that computes the sum of three integers. This program contains no conditional statements, so it will follow the same execution path no matter what input we run it with, and we do not place any constraints on the input. In general, a program will follow different execution paths, depending on the outcome of any conditional statements along the path. 
 		
+		To encapsulate this, we introduce a \emph{path-constraint} which is a list of boolean expressions $\{q_1, q_2, \ldots, q_n \}$ over the symbolic values. To follow a given path, $q_1 \land \ldots \land q_n$ must be \emph{satisfiable}. To be \emph{satisfiable}, there must exist an assignment of concrete values, to the symbolic ones so that the conjunction of the expressions evaluates to true. For example, $q = (2\cdot \alpha > \beta) \land (\alpha < \beta)$ is satisfiable, because we can choose $\alpha = 10$ and $\beta = 15$ in which case $q$ evaluates to \emph{true}.
+		\\ 
+		Whenever we reach a conditional statement with condition $q$, we consider the two following expressions:
+		
+
 		\begin{enumerate}
-			\item $ PC \land q$
-			\item $ PC \land \neg q$.
-		\end{enumerate}
-		
-		This gives a number of possible scenarios:
-		
+			\item $ pc \land q$
+			\item $ pc \land \neg q$
+		\end{enumerate}	
+		where $pc$ is the conjunction of all the expressions currently contained in the \emph{path-constraint}.
+		\\
+		This gives a number of possible scenarios:	
 		\begin{itemize}
-			\item \textbf{Only the first expression is satisfiable}: We will update $PC$ with $q$ so $PC \gets PC \land q$. Execution will continue by following the \emph{then}-branch.
-			\item \textbf{If only the second expression is satisfiable}: We will update $PC$ with $\neg q$ so $PC \gets PC \land \neg q$. Execution will continue by following the \emph{else}-branch.
-			\item \textbf{Both expressions are satisfiable}: In this case, the execution can follow both branches, so we \emph{fork} the program, by updating $PC$ with $PC \gets q$, and we make a copy of $PC$ and update this with $PC' gets \neg q$. This gives us two executions, one that follows the \emph{then}-branch with $PC$ and one that follows the \emph{else}-branch with $PC'$.  
+			\item \textbf{Only the first expression is satisfiable}: 
+			We add $q$ to the \emph{path-constraint}, and we continue the execution along the same path.
+			\item \textbf{If only the second expression is satisfiable}:
+			We add $\not q$ to the \emph{path-constraint}, and we continue along the same path. 
+			\item \textbf{Both expressions are satisfiable}: In this case, the execution can follow two paths; one where we assume $q$ and one where we assume $\not q$. At this point we \emph{fork} we fork the execution by considering two different executions of remaining program. Both executions start with the same shared variable state, and \emph{path-constraints} that is equal up to the final element. One execution will have $q$ as the final element and the other will have $\not q$. 
+			These two executions will now follow two different execution paths that differ from this conditional statement and onward.
 		\end{itemize}
 		
 		We illustrate this with the following example:
@@ -96,9 +93,9 @@ In this chapter we will cover some of theory behind symbolic execution. We will 
 		An important property of the \emph{path-constraint} is that it can never become identically false. To see why this is the case, we have to look at the possible updates of $PC$. At the start of an execution, it will be initialized with the value $true$. At any branching point, it will be updated with exactly one of the expressions $PC \land q$ and $PC \land \neg q$, and only if the given expression is satisfiable. So $PC$ will never end up looking like $\ldots \land q \land \ldots \land \neg q \land \ldots $ for some condition $q$. What this means is that when the program terminates at the end of some execution path, $PC$ will be a satisfiable formula over the symbolic values, which means that we can solve the constraints and derive a set of concrete values which will follow the exact same path if we execute the program normally.   
 		
 		%TODO Find better titles for sections 
-		\subsection{Limitations of symbolic execution}
+\section{Limitations of symbolic execution}
 		
-		\subsubsection{Infinite execution trees}
+		\subsection{Infinite execution trees}
 			As demonstrated in the last example in the previous sections, a symbolic execution can easily become infinite as soon as we introduce branching and some looping structure. This is further illustrated if we consider an execution tree for a program. In \cite{king76}, they are described by enumerating each statement, and let each node in the tree, correspond to an execution of one of the command. The edges going out from a node corresponds to the transition from one statement to the next. From this we can see that non forking statements will only have a single edge outgoing, while forking statements will have two. The forking edges will then correspond to splitting up the execution and following a different path, with a different \emph{path-constraint}. As an example, we can look at the execution tree for the program \emph{pow}, that computes $a^b$. 
 			
 			\Tree[.1 [.2 [.3 [.4 [.5 [.6 [.3 [.4 [.5 [.6 [.3 [.$\vdots$ ] [.{7: return $\alpha^2$ when $\beta = 2$  }
@@ -109,6 +106,6 @@ In this chapter we will cover some of theory behind symbolic execution. We will 
 			
 			(Maybe write something about induction over trees, and finite trees allowing for exhaustive search)
 			
-			\subsubsection{the ability(or inability) to decide whether a given path is feasible}
+			\subsection{the ability(or inability) to decide whether a given path is feasible}
 			
 			(Write something about restrictions on SMT-solvers e.g SAT being NP Complete and some theories may be undecidable)
