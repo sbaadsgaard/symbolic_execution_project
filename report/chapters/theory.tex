@@ -35,6 +35,19 @@ In this chapter we will cover the theory behind symbolic execution. We will star
 	
 \section{Path constraints and constraint solving.}
 		In the previous section we gave an example of a symbolic execution of a program that computes the sum of three integers. This program contains no conditional statements, so it will follow the same execution path no matter what input we run it with, and we do not place any constraints on the input. In general, a program will follow different execution paths, depending on the outcome of any conditional statements along the path. 
+
+		To encapsulate this, we introduce a \emph{path-constraint} which is a list of boolean expressions over the symbolic values. To follow a given path, the conjuction of these expressions must be \emph{satisfiable}. To be \emph{satisfiable}, there must exist an assignment of concrete values, to the symbolic ones so that the conjunction of the boolean expressions evaluates to true.
+		
+		
+		
+			
+		 The program is an extremely simple case, in which the program will behave exactly the same for any possible input values. In reality however, most program languages have some way of allowing branching to happen, and with this feature, we cannot guarantee that the program will behave exactly the same for all inputs. If our program contains an expression like \emph{If $x > 2$ Then ... Else ... }, the program will behave differently depending on whether or nor $x > 2$. To encapsulate this, we introduce a \emph{path-constraint (PC)}, which is a boolean expression that will contain all properties that the input must satisfy to follow the given path. At the beginning of the execution, the $PC$ will be initialized with the value $true$ as no assumptions have been made yet (If we introduce pre-conditions on the input, the $PC$ will of course contain these). 
+		At any \emph{if-expression} with condition $q$, during the execution we will look at the following to expressions
+		
+		\begin{enumerate}
+			\item $ PC \land q$
+			\item $ PC \land \neg q$.
+		\end{enumerate}
 		
 		To encapsulate this, we introduce a \emph{path-constraint} which is a list of boolean expressions $\{q_1, q_2, \ldots, q_n \}$ over the symbolic values. To follow a given path, $q_1 \land \ldots \land q_n$ must be \emph{satisfiable}. To be \emph{satisfiable}, there must exist an assignment of concrete values, to the symbolic ones so that the conjunction of the expressions evaluates to true. For example, $q = (2\cdot \alpha > \beta) \land (\alpha < \beta)$ is satisfiable, because we can choose $\alpha = 10$ and $\beta = 15$ in which case $q$ evaluates to \emph{true}.
 		\\ 
