@@ -24,9 +24,9 @@ In this chapter we will cover the theory behind symbolic execution. We will star
 	%https://tex.stackexchange.com/questions/9057/best-practice-for-control-flow-charts
 	\sumprogram{}
 	If we run this program on concrete values, say $a = 2, b = 3, c = 4$, we get the following execution:
-	First we assign $a+b = 5$ to the variable $x$. Then we assign $b + c = 7$ to the variable $y$· Next we assign $x + y - b = 9$ to variable $z$ and finally we return $z = 9$, which is indeed the sum of 2, 3 and 4. 
+	First we assign $a+b = 5$ to the variable $x$. Then we assign $b + c = 7$ to the variable $y$. Next we assign $x + y - b = 9$ to variable $z$ and finally we return $z = 9$, which is indeed the sum of 2, 3 and 4. 
 	\\
-	Let us now run the program which symbolic input values $\alpha, \beta$ and $\gamma$ for $a, b$ and $c$ respectively. 
+	Let us now run the program with symbolic input values $\alpha, \beta$ and $\gamma$ for $a, b$ and $c$ respectively. 
 
 	
 	We would then get the following execution: We assign $\alpha + \beta$ to $x$. We then assign $\beta + \gamma$ to $y$. Finally we assign $(\alpha + \beta) + (\beta + \gamma) - \beta$ to $z$ and return $z = \alpha + \beta + \gamma$. We can conclude that the program correctly computes the sum of $a, b$ and $c$, for any possible value of these.
@@ -50,13 +50,13 @@ In this chapter we will cover the theory behind symbolic execution. We will star
 			\item \textbf{Only the first expression is satisfiable}: 
 			We add $q$ to the \emph{path-constraint}, and we continue the execution along path corresponding to the condition evaluating to $true$.
 			\item \textbf{Only the second expression is satisfiable}:
-			We add $\neg q$ to the \emph{path-constraint}, and we continue along path corresponding to the condition evaluating to $false$. 
-			\item \textbf{Both expressions are satisfiable}: In this case, the execution can follow two paths; one corresponding to the condition being $false$ and one being $true$. At this point we \emph{fork} the execution by considering two different executions of the remaining part of the program. Both executions start with the same shared variable state and \emph{path-constraints} that is the same
+			We add $\neg q$ to the \emph{path-constraint}, and we continue along the path corresponding to the condition evaluating to $false$. 
+			\item \textbf{Both expressions are satisfiable}: In this case, the execution can follow two paths; one corresponding to the condition being $false$ and one being $true$. At this point we \emph{fork} the execution by considering two different executions of the remaining part of the program. Both executions start with the same variable state and \emph{path-constraints} that are the same
 			 up to the final element. One will have $q$ as the final element and the other will have $\neg q$. 
 			These two executions will now follow two different execution paths that differ from this conditional statement and onward.
 		\end{itemize}
 		
-		To illustrate this, we can consider the program from the motivating example, that takes input parameters $units$ and $costs$:
+		To illustrate this, we consider the program from the motivating example, that takes input parameters $units$ and $costs$:
 		
 		\motexample{}
 		
@@ -80,7 +80,7 @@ In this chapter we will cover the theory behind symbolic execution. We will star
 			\item $true \land (\alpha \cdot 2 \geq 16) \land (2\cdot \alpha - 10 < \beta)$.
 		\end{enumerate}
 		
-		The first two \emph{path-constraints} represents the two different baths that leads to the return statement, where the first one returns $2\cdot \alpha$ and the second one returns $2\cdot \alpha - 10$. Inputs that satisfy these, does not result in a crash.
+		The first two \emph{path-constraints} represents the two different paths that leads to the return statement, where the first one returns $2\cdot \alpha$ and the second one returns $2\cdot \alpha - 10$. Inputs that satisfy these, does not result in a crash.
 		The final \emph{path-constraint} represents the path that leads to the $Error$ statement, so we can conclude that all input values that satisfy these constraints, will result in a program crash.
 	
 		\iffalse
@@ -124,10 +124,10 @@ In this chapter we will cover the theory behind symbolic execution. We will star
 	So far, we have considered symbolic execution of very nicely behaving programs, in terms of the number of possible execution paths and the types of constraints that must be solved. 
 	In this section we will cover the challenges that arise when we consider programs that does not behave so nicely.
 	
-	\subsection{Number of possible execution paths} 
-		Since each conditional statement in a given program can result in up to two different execution paths, the total number of paths to be explored can be exponential in the number of conditional statements. 
+	\subsection{The number of possible execution paths} 
+		Since each conditional statement in a given program can result in up to two different execution paths, the total number of paths to be explored is potentially exponential in the number of conditional statements. 
 		For this reason, the running time of the symbolic execution quickly gets out of hands if we explore all paths. 
-		 The challenge gets even greater if the program contains a looping statement. We can illustrate this by considering the following program that implements the power-function for integers $a$ and $b$. with symbolic values $\alpha$ and $\beta$ for $a$ and $b$:
+		 The challenge gets even greater if the program contains a looping statement. We can illustrate this by considering the following program that implements the power-function for integers $a$ and $b$, with symbolic values $\alpha$ and $\beta$ for $a$ and $b$:
 		\pow{}
 		
 	This program contains a $While$-statement with condition $q = i < b$. The $k'th$ time we reach this statement we will consider the following two expressions:
