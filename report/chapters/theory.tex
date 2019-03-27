@@ -1,40 +1,24 @@
 In this chapter we will cover the theory behind symbolic execution. We will start by describing what it means to \emph{symbolically execute} a program and how we deal branching. We will also explain the connection between a symbolic execution of a program, and a concrete one. We shall restrict our focus to programs that takes integer values as input and allows us to do arithmetic operations on such values. In the end we will cover the challenges and limitations of symbolic execution that arises when these restrictions are lifted. 
-\iffalse 	
-\section{Principles of symbolic execution }
-	
-	In \cite{king76}, symbolic execution is described as a practical approach between simple program testing and program proving. At one extreme, program testing allows the programmer to get some level of confidence in the program, by running it on a well-selected sample of input values, but this sample size will be but a fraction of the possible input values. At the other extreme, program proving will give complete confidence in the programs correctness. To achieve this, one must provide a precise specification of correct behavior, as well as be able to perform perform formal proof steps to conclude that the program satisfies this specification. This is a challenging task, even for relatively simple programs. \emph{Symbolic execution} will serve as a practical middle ground between these two, in which we try to extend simple program testing to cover more general classes of inputs.  
-\fi
 
-\section{Symbolically executing a program}
+
+\section{Symbolic executing of a program}
 	
-	
-	
-	\iffalse
-	\cite{CadarSen13} describes symbolic execution as follows:
-	
-	Any input to the program will be replaced with \emph{symbolic} values instead of concrete ones. Any operations on the symbolic values, will result in expressions over these, so our program state can be describes as a map from variable names to expressions over the input values. This also means that any return value from the execution will be such an expression. In \cite{king76} an example is given of a program written in a simple language with only signed integer values and arithmetic operations on these. In a symbolic context, this will translate to a program that operates on polynomials with integer coefficients.
-	
-	\fi   
-	
-	When we execute a program symbolically, we use symbolic values as input data to the program, instead of concrete values. Instead of referencing concrete values, variables will reference expressions over the symbolic values, and therefore the return value of a program will also be such expressions \cite{CadarSen13}.
-	
-	
-	
-	To illustrate this, we consider the following program, that takes parameters $a, b, c$ and computes the sum:
+	During a normal execution of a program, input values consists of integers. During a symbolic execution we replace concrete values by symbols e.g $\alpha$ and $ \beta$, that acts as placeholders for actual integers. We will refer to symbols and arithmetic expressions over these as \emph{symbolic values}.
+	 The program environment consists of variables that can reference both concrete and symbolic values. \cite{CadarSen13}.
+	\\
+	To illustrate this, we consider the following program that takes parameters $a, b, c$ and computes the sum:
 	%https://tex.stackexchange.com/questions/9057/best-practice-for-control-flow-charts
 	\sumprogram{}
-	If we run this program on concrete values, say $a = 2, b = 3, c = 4$, we get the following execution:
+	Lets consider running the program with concrete values $a = 2, b = 3, c = 4$. we then get the following execution:
 	First we assign $a+b = 5$ to the variable $x$. Then we assign $b + c = 7$ to the variable $y$. Next we assign $x + y - b = 9$ to variable $z$ and finally we return $z = 9$, which is indeed the sum of 2, 3 and 4. 
 	\\
 	Let us now run the program with symbolic input values $\alpha, \beta$ and $\gamma$ for $a, b$ and $c$ respectively. 
 
 	
-	We would then get the following execution: We assign $\alpha + \beta$ to $x$. We then assign $\beta + \gamma$ to $y$. Finally we assign $(\alpha + \beta) + (\beta + \gamma) - \beta$ to $z$ and return $z = \alpha + \beta + \gamma$. We can conclude that the program correctly computes the sum of $a, b$ and $c$, for any possible value of these.
+	We would then get the following execution: First we assign $\alpha + \beta$ to $x$. We then assign $\beta + \gamma$ to $y$. Next we assign $(\alpha + \beta) + (\beta + \gamma) - \beta$ to $z$.Finally we return $z = \alpha + \beta + \gamma$. We can conclude that the program correctly computes the sum of $a, b$ and $c$, for any possible value of these.
 	
 \section{Execution paths and path constraints}
-		In the previous section we gave an example of a symbolic execution of a program that computes the sum of three integers. This program contains no conditional statements, so it will follow the same execution path no matter what input we run it with, and we do not place any constraints on the input. In general, a program will follow different execution paths, depending on the outcome of any conditional statements along the path. 
-		\\
-		To encapsulate this, we introduce a \emph{path-constraint} which is a list of boolean expressions $\{q_1, q_2, \ldots, q_n \}$ over the symbolic values, where each $q_i$ corresponds to a condition from conditional statements along an execution path. At the start of an execution, the \emph{path-constraint} only contains the expression $true$, since we have not encountered any conditional statements. To follow a given path, $q_1 \land \ldots \land q_n$ must be \emph{satisfiable}. To be \emph{satisfiable}, there must exist an assignment of concrete values, to the symbolic ones so that the conjunction of the expressions evaluates to true. For example, $q = (2\cdot \alpha > \beta) \land (\alpha < \beta)$ is satisfiable, because we can choose $\alpha = 10$ and $\beta = 15$ in which case $q$ evaluates to \emph{true}.
+		The program that we considered in the previous section contains no conditional statements, which means it only has a single possible execution path. In general, a program with conditional statements $s_1, s_2, \ldots, s_n$ with conditions $q_1, q_2, \ldots, q_n$, will have several execution paths that are uniquely determined by the value of these conditions. In symbolic execution, we model this by introducing a \emph{path-constraint} for each execution path. The \emph{path-constraint} is a list of boolean expressions $\lbrack q_1, q_2, \ldots, q_n \rbrack$ over the symbolic values, corresponding to conditions from the conditional statements along the path. At the start of an execution, the \emph{path-constraint} only contains the expression $true$, since we have not encountered any conditional statements. We only execute along a path if $q_1 \land \ldots \land q_n$ is \emph{satisfiable}. To be \emph{satisfiable}, there must exist an assignment of integers to the symbols, such that the conjunction of the expressions evaluates to true. For example, $q = (2\cdot \alpha > \beta) \land (\alpha < \beta)$ is satisfiable, because we can choose $\alpha = 10$ and $\beta = 15$ in which case $q$ evaluates to \emph{true}.
 		\\ 
 		Whenever we reach a conditional statement with condition $q$, we consider the two following expressions:
 		
