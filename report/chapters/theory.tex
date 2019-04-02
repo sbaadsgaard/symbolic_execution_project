@@ -69,8 +69,7 @@ In this chapter we will cover the theory behind symbolic execution. We will star
 		
 \section{Constraint solving}
 	
-	In the previous section we described how to handle programs with multiple execution paths by introducing a \emph{path-constraint} for each path. The system of constraints contained in a particular \emph{path-constraint} defines a class of integers that will cause the program to execute along this exact path. 
-	We can therefore solve these constraints and obtain concrete input values that cover this path. 
+	In the previous section we described how to handle programs with multiple execution paths by introducing a \emph{path-constraint} for each path, which a list of constraints on the input symbols. This system of constraints defines a class of integers that will cause the program to execute along this path. By solving the system from each \emph{path-constraint}, we obtain a member from each of class which forms a set of concrete inputs that cover all possible paths.    
 	
 	If we consider the motivating example again, we found three different paths, represented by the following \emph{path-constraints}:
 	\begin{enumerate}
@@ -79,16 +78,16 @@ In this chapter we will cover the theory behind symbolic execution. We will star
 		\item $true \land (\alpha \cdot 2 \geq 16) \land (2\cdot \alpha - 10 < \beta)$.
 	\end{enumerate}
 	
-	By solving for $\alpha$ and $\beta$, we obtain the set of inputs $\{(7, \beta), (8,6), (8, 7)\}$, that covers all possible execution paths. Note that we have excluded a concrete value for $\beta$ in the first test case, because the path represented by this \emph{path-constraint} does not depend on the value of $\beta$. 
+	By solving for $\alpha$ and $\beta$, we obtain the set of inputs $\{(7, \beta), (8,6), (8, 7)\}$, that covers all possible execution paths. Note that we have excluded a concrete value for $\beta$ in the first test case, because the \emph{path-constraint} does not depend on the value of $\beta$. 
 	 
 \section{Limitations and challenges of symbolic execution}
-	So far, we have considered symbolic execution of very nicely behaving programs, in terms of the number of possible execution paths and the types of constraints that must be solved. 
-	In this section we will cover the challenges that arise when we consider programs that does not behave so nicely.
+	So far we have only considered symbolic execution of programs with a small number of execution paths. Furthermore, the constraints placed on the input symbols have all been linear.
+	In this section we will cover the challenges that arise when we consider more general programs.
 	
 	\subsection{The number of possible execution paths} 
-		Since each conditional statement in a given program can result in up to two different execution paths, the total number of paths to be explored is potentially exponential in the number of conditional statements. 
+		Since each conditional statement in a given program can result in two different execution paths, the total number of paths to be explored is potentially exponential in the number of conditional statements. 
 		For this reason, the running time of the symbolic execution quickly gets out of hands if we explore all paths. 
-		 The challenge gets even greater if the program contains a looping statement. We can illustrate this by considering the following program that implements the power-function for integers $a$ and $b$, with symbolic values $\alpha$ and $\beta$ for $a$ and $b$:
+		 The challenge gets even greater if the program contains a looping statement. We illustrate this by considering the following program that implements the power-function for integers $a$ and $b$, with symbolic values $\alpha$ and $\beta$ for $a$ and $b$:
 		\pow{}
 		
 	This program contains a $While$-statement with condition $q = i < b$. The $k'th$ time we reach this statement we will consider the following two expressions:
@@ -99,4 +98,4 @@ In this chapter we will cover the theory behind symbolic execution. We will star
 	Both of these expressions are satisfiable, so we fork the execution. This is the case for any $k > 0$, which means that the number of possible execution paths is infinite. If we insist on exploring all paths, the symbolic execution will simply continue for ever. 
 	
 	\subsection{deciding satisfiability of \emph{path-constraints} and constraint solving}
-			
+	
