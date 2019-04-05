@@ -98,7 +98,7 @@ In this chapter we will cover the theory behind symbolic execution. We will star
 	Both of these expressions are satisfiable, so we fork the execution. This is the case for any $k > 0$, which means that the number of possible execution paths is infinite. If we insist on exploring all paths, the symbolic execution will simply continue for ever. 
 	
 	\subsection{deciding satisfiability of \emph{path-constraints}}
-	A key component of symbolic execution, is deciding whether or not a \emph{path-constraint} is satisfiable, in which case the corresponding path is eligible for exploration. Consider the following \emph{path-constraint} from the motivating example:
+	A key component of symbolic execution, is deciding if a \emph{path-constraint} is satisfiable, in which case the corresponding execution path is eligible for exploration. Consider the following \emph{path-constraint} from the motivating example:
 	
 	\begin{equation}	
 		true \land (\alpha \cdot 2 \geq 16) \land \neg (2\cdot \alpha - 10 < \beta).
@@ -121,7 +121,6 @@ In this chapter we will cover the theory behind symbolic execution. We will star
 	\subsubsection{The SMT problem}
 	
 	The example we just gave, is an instance of the \emph{Satisfiability Modulo Theories(\textbf{SMT}) probem}. In this problem we are given a logical formula which consists of the conjunction or disjunction of boolean variables $q_1, q_2, \ldots, q_n$, or their negation. The task is then to decide if there exist an assignment of boolean values $true$ and $false$ to this variables, so that the formula evaluates to \emph{true}. Furthermore, each of these boolean variables represent some formula belonging to a theory. Such a theory could be the \emph{theory of Linear Integer Arithmetic(\textbf{LIA})} which we will explain shortly. If there exist an assignment that satisfies the original formula, this assignment must also be valid w.r.t the given theory. Note that the first part of this problem is simply the \emph{boolean SAT problem}, which is known to be \emph{NP-complete}, so solving this part alone takes worst-case exponential time. % TODO INSERT CITATION OF LEC NOTES FROM OPT.
-	
 	
 	\subsubsection{The theory of linear arithmetic}
 	
