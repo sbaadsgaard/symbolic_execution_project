@@ -1,0 +1,5 @@
+package grammars
+
+object SymbolicGrammar {
+
+}
