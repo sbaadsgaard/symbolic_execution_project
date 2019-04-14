@@ -1,8 +1,7 @@
-
 import grammars.ConcreteGrammar.AOp.Add
 import grammars.ConcreteGrammar.Bop.{Eq, Gt}
-import grammars.ConcreteGrammar.ConcreteValue.{BoolValue, IntValue, UnitValue}
-import grammars.ConcreteGrammar.Exp.{AExp, AssignExp, BExp, CallExp, ComExp, IfExp, Lit, Var, WhileExp}
+import grammars.ConcreteGrammar.ConcreteValue.IntValue
+import grammars.ConcreteGrammar.Exp._
 import grammars.ConcreteGrammar._
 import interpreters.ConcreteInterpreter
 
@@ -11,11 +10,12 @@ import scala.collection.mutable
 
 object Driver extends App {
   val concreteInterpreter = new ConcreteInterpreter()
-  val test = Prog(new HashMap[String, FDecl](), AExp(Lit(IntValue(1)), Lit(IntValue(2)), Add()))
+
+  val test = Prog(new HashMap[String, FDecl](), AExp(Lit(IntValue(1)), Lit(IntValue(0)), Add()))
   val test1 = Prog(new HashMap[String, FDecl](),
     ComExp(
-      AssignExp(Var("x"), AExp(Lit(IntValue(1)), Lit(IntValue(11)), Add())),
-      Var("x")
+      AssignExp(Var(Id("x")), AExp(Lit(IntValue(1)), Lit(IntValue(11)), Add())),
+      Var(Id("x"))
     ))
   val test2 = Prog(new HashMap[String, FDecl](),
     IfExp(
@@ -29,36 +29,27 @@ object Driver extends App {
 
   val test3 = Prog(new HashMap[String, FDecl](),
     ComExp(
-      AssignExp(Var("x"), Lit(IntValue(0))),
+      AssignExp(Var(Id("x")), Lit(IntValue(0))),
       ComExp(
         WhileExp(
           BExp(
             Lit(IntValue(10)),
-            Var("x"),
+            Var(Id("x")),
             Gt()
           ),
           AssignExp(
-            Var("x"),
+            Var(Id("x")),
             AExp(
-              Var("x"),
+              Var(Id("x")),
               Lit(IntValue(1)),
               Add()
             )
           )
         ),
-        Var("x")
+        Var(Id("x"))
       )
     )
   )
-
-  val test4 = Prog(
-    HashMap("test" -> FDecl(
-      "test",
-      List(Var("x"), Var("y"), Var("z")),
-      AExp(Var("x"), AExp(Var("y"), Var("z"), Add()), Add())
-    )),
-    CallExp("test", List(AExp(Lit(IntValue(1)), Lit(IntValue(2)), Add()), Lit(IntValue(2)), Lit(IntValue(3))))
-  )
-  print(concreteInterpreter.interpProg(test4, new mutable.HashMap[Var, ConcreteValue]()))
+  print(concreteInterpreter.interpProg(test3 , new mutable.HashMap[Id, ConcreteValue]()))
 
 }

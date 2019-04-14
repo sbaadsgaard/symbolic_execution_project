@@ -24,10 +24,10 @@ object ConcreteGrammar {
         a <- this; b1 <- b
       } yield f(a, b1)
 
-
+    //inspired by filter for Option. We supply a default instance of Error, which will be returned if the condition
     def filterWithDefault(default: Result)(f: ConcreteValue => Boolean): Result = this match {
       case Error(msg) => Error(msg)
-      case Ok(v) => if (f(v)) Ok(v) else default
+      case Ok(v) => if (f(v)) this else default
     }
   }
 
@@ -51,6 +51,12 @@ object ConcreteGrammar {
 
     def getInt(): Int = this.asInstanceOf[IntValue].v
 
+  }
+
+  sealed trait Input
+
+  object Input {
+    case class Concrete(e: Exp) extends Input
   }
 
   sealed trait AOp
@@ -77,13 +83,15 @@ object ConcreteGrammar {
 
   }
 
+  case class Id(s: String)
+
   sealed trait Exp
 
   object Exp {
 
     case class Lit(v: ConcreteValue) extends Exp
 
-    case class Var(id: String) extends Exp
+    case class Var(id: Id) extends Exp
 
     case class AExp(e1: Exp, e2: Exp, op: AOp) extends Exp
 
@@ -95,14 +103,14 @@ object ConcreteGrammar {
 
     case class WhileExp(c: BExp, doExp: Exp) extends Exp
 
-    case class CallExp(id: String, args: List[Exp]) extends Exp
+    case class CallExp(id: String, args: List[Input.Concrete]) extends Exp
 
     case class ComExp(e1: Exp, e2: Exp) extends Exp
 
   }
 
 
-  case class FDecl(name: String, params: List[Exp.Var], body: Exp)
+  case class FDecl(name: String, params: List[Id], body: Exp)
 
   case class Prog(funcs: HashMap[String, FDecl], e: Exp)
 }
