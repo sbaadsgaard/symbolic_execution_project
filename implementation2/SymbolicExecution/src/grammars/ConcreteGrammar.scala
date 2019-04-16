@@ -24,9 +24,9 @@ object ConcreteGrammar {
         a <- this; b1 <- b
       } yield f(a, b1)
 
-    //inspired by filter for Option. We supply a default instance of Error, which will be returned if the condition
+    //inspired by filter for Option. We supply a default instance of Error, which will be returned if the condition fails
     def filterWithDefault(default: Result)(f: ConcreteValue => Boolean): Result = this match {
-      case Error(msg) => Error(msg)
+      case Error(_) => this
       case Ok(v) => if (f(v)) this else default
     }
   }

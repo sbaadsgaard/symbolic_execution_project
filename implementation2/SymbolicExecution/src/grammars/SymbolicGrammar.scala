@@ -10,12 +10,12 @@ object SymbolicGrammar {
   sealed trait Result {
     //inspired by filter for Option. We supply a default instance of Error, which will be returned if the condition fails
     def filterWithDefault(default: Result)(f: SymbolicValue => Boolean): Result = this match {
-      case Error(msg) => Error(msg)
+      case Error(_) => this
       case Ok(v) => if (f(v)) this else default
     }
 
     def map(f: SymbolicValue => SymbolicValue): Result = this match {
-      case Error(msg) => this
+      case Error(_) => this
       case Ok(v) => Ok(f(v))
     }
 
