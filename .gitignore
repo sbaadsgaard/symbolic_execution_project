@@ -22,3 +22,5 @@
 *.out
 *.synctex.gz
 *.idea
+*.class
+./implementation2/SymbolicExecution/out/*
