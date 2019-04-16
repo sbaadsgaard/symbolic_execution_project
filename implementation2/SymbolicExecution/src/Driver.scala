@@ -1,7 +1,8 @@
-import grammars.ConcreteGrammar.AOp.Add
-import grammars.ConcreteGrammar.Bop.{Eq, Gt}
+import grammars.ConcreteGrammar.AOp.{Add, Mul}
+import grammars.ConcreteGrammar.BOp.{Eq, Gt}
 import grammars.ConcreteGrammar.ConcreteValue.IntValue
 import grammars.ConcreteGrammar.Exp._
+import grammars.ConcreteGrammar.Input.Concrete
 import grammars.ConcreteGrammar._
 import interpreters.ConcreteInterpreter
 
@@ -21,7 +22,7 @@ object Driver extends App {
     IfExp(
       BExp(
         Lit(IntValue(2)),
-        Lit(IntValue(2)),
+        Lit(IntValue(1)),
         Eq()
       ),
       Lit(IntValue(2)),
@@ -50,6 +51,39 @@ object Driver extends App {
       )
     )
   )
-  print(concreteInterpreter.interpProg(test3 , new mutable.HashMap[Id, ConcreteValue]()))
+
+  val dec = FDecl(Id("test"), List(Id("x"), Id("y"), Id("z")), Lit(IntValue(2)))
+  val test4 = Prog(
+    HashMap("test" -> FDecl(Id("test"), List(Id("x"), Id("y"), Id("z")),
+      AExp(
+        Var(Id("x")),
+        AExp(
+          Var(Id("y")),
+          Var(Id("z")),
+          Add()
+        ),
+        Add()
+      )
+    )),
+    CallExp(Id("test"), List(Concrete(Lit(IntValue(1))), Concrete(Lit(IntValue(2))), Concrete(Lit(IntValue(3))))),
+  )
+
+  val test5 = Prog(
+    HashMap("test" -> FDecl(
+      Id("test"),
+      List(Id("x"), Id("y")),
+      ComExp(
+        AssignExp(Var(Id("rev")), AExp(Var(Id("x")), Lit(IntValue(2)), Mul())),
+        IfExp(
+          BExp(Var(Id("rev")), Var(Id("y")), Gt()),
+          Var(Id("x")),
+          Var(Id("y"))
+        )
+      )
+    )),
+    CallExp(Id("test"), List(Concrete(Lit(IntValue(3))), Concrete(Lit(IntValue(7)))))
+  )
+
+  print(concreteInterpreter.interpProg(test5, new mutable.HashMap[Id, ConcreteValue]()))
 
 }

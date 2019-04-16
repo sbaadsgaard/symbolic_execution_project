@@ -20,7 +20,7 @@ object ConcreteGrammar {
     }
 
     def map2(b: Result)(f: (ConcreteValue, ConcreteValue) => ConcreteValue): Result =
-      for   {
+      for {
         a <- this; b1 <- b
       } yield f(a, b1)
 
@@ -32,11 +32,16 @@ object ConcreteGrammar {
   }
 
   object Result {
+
     case class Ok(v: ConcreteValue) extends Result
+
     case class Error(msg: String) extends Result
+
     def Try(a: => ConcreteValue): Result =
       try Ok(a)
-      catch{case e: Exception => Error(e.getLocalizedMessage)}
+      catch {
+        case e: Exception => Error(e.getLocalizedMessage)
+      }
   }
 
   sealed trait ConcreteValue
@@ -45,11 +50,7 @@ object ConcreteGrammar {
 
     case class IntValue(v: Int) extends ConcreteValue
 
-    case class BoolValue(b: Boolean) extends ConcreteValue
-
     case class UnitValue() extends ConcreteValue
-
-    def getInt(): Int = this.asInstanceOf[IntValue].v
 
   }
 
@@ -73,13 +74,13 @@ object ConcreteGrammar {
 
   }
 
-  sealed trait Bop
+  sealed trait BOp
 
-  object Bop {
+  object BOp {
 
-    case class Gt() extends Bop
+    case class Gt() extends BOp
 
-    case class Eq() extends Bop
+    case class Eq() extends BOp
 
   }
 
@@ -95,22 +96,23 @@ object ConcreteGrammar {
 
     case class AExp(e1: Exp, e2: Exp, op: AOp) extends Exp
 
-    case class BExp(e1: Exp, e2: Exp, op: Bop) extends Exp
+    case class BExp(e1: Exp, e2: Exp, op: BOp) extends Exp
 
     case class AssignExp(v: Var, e: Exp) extends Exp
 
-    case class IfExp(c: BExp, thenExp: Exp, elseExp: Exp) extends Exp
+    case class IfExp(c: Exp, thenExp: Exp, elseExp: Exp) extends Exp
 
-    case class WhileExp(c: BExp, doExp: Exp) extends Exp
+    case class WhileExp(c: Exp, doExp: Exp) extends Exp
 
-    case class CallExp(id: String, args: List[Input.Concrete]) extends Exp
+    case class CallExp(id: Id, args: List[Input.Concrete]) extends Exp
 
     case class ComExp(e1: Exp, e2: Exp) extends Exp
 
   }
 
 
-  case class FDecl(name: String, params: List[Id], body: Exp)
+  case class FDecl(name: Id, params: List[Id], body: Exp)
 
   case class Prog(funcs: HashMap[String, FDecl], e: Exp)
+
 }

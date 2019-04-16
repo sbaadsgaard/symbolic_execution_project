@@ -24,7 +24,7 @@ object SymbolicGrammar {
       case Ok(v) => f(v)
     }
 
-    def map2(b: Result)(f: (SymbolicValue, SymbolicValue) => SymbolicValue) =
+    def map2(b: Result)(f: (SymbolicValue, SymbolicValue) => SymbolicValue): Result =
       for {
         a <- this; b1 <- b
       } yield f(a, b1)
@@ -41,19 +41,19 @@ object SymbolicGrammar {
   sealed trait Input
 
   object Input {
-    case class Concrete(e: Exp)
-    case class Symbolic(s: String)
+    case class Concrete(e: Exp) extends Input
+    case class Symbolic(s: String) extends Input
   }
 
   sealed trait SymbolicValue
 
   object SymbolicValue {
 
-    case class Constraint(e: ArithExpr) extends  SymbolicValue
+    case class SymExpr(e: ArithExpr) extends SymbolicValue
+
+    case class Constraint(c: BoolExpr) extends  SymbolicValue
 
     case class IntValue(v: Int) extends SymbolicValue
-
-    case class BoolValue(b: Boolean) extends SymbolicValue
 
     case class UnitValue() extends SymbolicValue
 
@@ -102,17 +102,22 @@ object SymbolicGrammar {
 
     case class IfExp(c: BExp, thenExp: Exp, elseExp: Exp) extends Exp
 
-    case class WhileExp(c: BExp, doExp: Exp) extends Exp
+    case class WhileExp(c: Exp, doExp: Exp) extends Exp
 
-    case class CallExp(id: String, args: List[Input]) extends Exp
+    case class CallExp(id: Id, args: List[Input]) extends Exp
 
     case class ComExp(e1: Exp, e2: Exp) extends Exp
 
   }
 
+  sealed trait BExp
+
+  object BExp {
+
+  }
+
   case class Prog(funcs: HashMap[String, FDecl], e: Exp)
 
-
-  case class FDecl(name: String, params: List[Id], body: Exp)
+  case class FDecl(name: Id, params: List[Id], body: Exp)
 
 }
