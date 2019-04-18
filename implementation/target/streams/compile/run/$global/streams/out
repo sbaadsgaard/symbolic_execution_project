@@ -1,0 +1,2 @@
+[0m[[0m[0mdebug[0m] [0m[0mjavaOptions: List(-Djava.library.path=.:/home/baadsgaard/bachelor_symbolic_execution/misc_ressources/z3/build)[0m
+[0m[[0m[31merror[0m] [0m[0mNonzero exit code returned from runner: 1[0m
