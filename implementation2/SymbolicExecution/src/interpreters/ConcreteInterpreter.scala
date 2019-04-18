@@ -1,44 +1,75 @@
 package interpreters
 
 import grammars.ConcreteGrammar.AOp.{Add, Div, Mul, Sub}
-import grammars.ConcreteGrammar.BOp.{Eq, Gt}
-import grammars.ConcreteGrammar.ConcreteValue.{IntValue, UnitValue}
+import grammars.ConcreteGrammar.BOp._
+import grammars.ConcreteGrammar.ConcreteValue.{False, IntValue, True, UnitValue}
 import grammars.ConcreteGrammar.Exp._
-import grammars.ConcreteGrammar.Result.{Error, Ok}
 import grammars.ConcreteGrammar._
+import result.{Error, Ok, Result}
 
 import scala.collection.mutable
 
 class ConcreteInterpreter {
-  def interpProg(p: Prog, env: mutable.HashMap[Id, ConcreteValue]): Result = {
-    def interpExp(e: Exp, env: mutable.HashMap[Id, ConcreteValue]): Result = e match {
+  def interpExp(p: Prog, e: Exp, env: mutable.HashMap[Id, ConcreteValue]): Result[ConcreteValue, String] = {
+    e match {
+
       case Lit(v) => Ok(v)
       case Var(id) => env.get(id) match {
-        case None => Error(s"Variable ${id.s} not declared")
+        case None => Error(s"variable ${id.s} not defined")
         case Some(value) => Ok(value)
       }
+
+      case AssignExp(v, exp) => handleAssignment(exp, v.id, env)
+
       case AExp(e1, e2, op) =>
-        val error = Error("Arithmetic operations on unit")
-        interpExp(e1, env).filterWithDefault(error)(_.isInstanceOf[IntValue])
-          .map2(interpExp(e2, env).filterWithDefault(error)(_.isInstanceOf[IntValue])
-            .filterWithDefault(Error("division by zero"))(_.asInstanceOf[IntValue].v != 0))(handleAExp(_, _, op))
+        for {
+          v1 <- interpExp(p, e1, env)
+          v2 <- interpExp(p, e2, env)
+          r <- (v1, v2) match {
+            case (i: IntValue, j: IntValue) => op match {
+              case Add() => Ok(IntValue(i.v + j.v ))
+              case Sub() => Ok(IntValue(i.v - j.v))
+              case Mul() => Ok(IntValue(i.v * j.v))
+              case Div() => if (j.v == 0) Error("division by zero") else Ok(IntValue(i.v / j.v))
+            }
+            case _ => Error("arithmetic operation on non integer values")
+          }
+        } yield r
+
       case BExp(e1, e2, op) =>
-        val error = Error("Comparison of unit")
-        interpExp(e1, env).filterWithDefault(error)(_.isInstanceOf[IntValue])
-          .map2(interpExp(e2, env).filterWithDefault(error)(_.isInstanceOf[IntValue]))(handleBExp(_, _, op))
+        for {
+          v1 <- interpExp(p, e1, env)
+          v2 <- interpExp(p, e2, env)
+          r <- (v1, v2) match {
+            case (i: IntValue, j: IntValue) => op match {
+              case Leq() => if (i.v <= j.v) Ok(True()) else Ok(False())
+              case Geq() => if (i.v >= j.v) Ok(True()) else Ok(False())
+              case Lt() => if (i.v < j.v) Ok(True()) else Ok(False())
+              case Gt() => if (i.v > j.v) Ok(True()) else Ok(False())
+              case Eq() => if (i.v == j.v) Ok(True()) else Ok(False())
+            }
+            case _ => Error("comparsion of non integer values")
+          }
+        } yield r
+
+
       case AssignExp(v, exp) => handleAssignment(exp, v.id, env)
 
       case IfExp(c, thenExp, elseExp) =>
-        interpExp(c, env).filterWithDefault(Error("unit value as condition"))(_.isInstanceOf[IntValue])
-          .flatMap(v => if (v.asInstanceOf[IntValue].v != 0) interpExp(thenExp, env) else interpExp(elseExp, env))
+        interpExp(p, c, env).flatMap({
+          case True() => interpExp(p, thenExp, env)
+          case False() => interpExp(p, elseExp, env)
+        })
 
       case WhileExp(c, doExp) =>
-        def go(): Result =
-          interpExp(c, env).filterWithDefault(Error("unit value as condition"))(_.isInstanceOf[IntValue]).
-            flatMap(v => if (v.asInstanceOf[IntValue].v != 0) {
-              interpExp(doExp, env)
-              go()
-            } else Ok(UnitValue()))
+        def go(): Result[ConcreteValue, String] = interpExp(p, c, env).flatMap({
+          case True() =>
+            interpExp(p, doExp, env)
+            go()
+          case False() =>
+            Ok(UnitValue())
+          case _ => Error("non boolean condition in while expression")
+        })
 
         go()
 
@@ -47,43 +78,25 @@ class ConcreteInterpreter {
         case Some(f) =>
           if (args.length == f.params.length) {
             val localEnv = env.clone()
-            args.map(_.e).zip(f.params).map(p => handleAssignment(p._1, p._2, localEnv)).find(_.isInstanceOf[Error]) match {
+            args.zip(f.params).map(p => handleAssignment(p._1, p._2, localEnv)).find(_.isInstanceOf[Error]) match {
               case Some(err) => err
-              case None => interpExp(f.body, localEnv)
+              case None => interpExp(p, f.body, localEnv)
             }
           } else Error("formal and actual parameter list differ in length")
       }
-      case ComExp(e1, e2) => interpExp(e1, env).map2(interpExp(e2, env))((_, r2) => r2)
+      case SeqExp(e1, e2) =>
+        for {
+          _ <- interpExp(p, e1, env)
+          v <- interpExp(p, e2, env)
+        } yield v
     }
 
-    def handleAssignment(exp: Exp, id: Id, env: mutable.HashMap[Id, ConcreteValue]): Result =
-      interpExp(exp, env)
-        .filterWithDefault(Error("assigning unit to variable"))(_.isInstanceOf[IntValue])
-        .flatMap(r => {
-          env.update(id, r)
-          Ok(r)
-        })
-
-    def handleAExp(v1: ConcreteValue, v2: ConcreteValue, op: AOp): ConcreteValue = {
-      val i = v1.asInstanceOf[IntValue].v
-      val j = v2.asInstanceOf[IntValue].v
-      op match {
-        case Add() => IntValue(i + j)
-        case Sub() => IntValue(i - j)
-        case Mul() => IntValue(i * j)
-        case Div() => IntValue(i / j)
-      }
-    }
-
-    def handleBExp(v1: ConcreteValue, v2: ConcreteValue, op: BOp): ConcreteValue = {
-      val i = v1.asInstanceOf[IntValue].v
-      val j = v2.asInstanceOf[IntValue].v
-      op match {
-        case Gt() => IntValue(if (i > j) 1 else 0)
-        case Eq() => IntValue(if (i == j) 1 else 0)
-      }
-    }
-
-    interpExp(p.e, env)
+    def handleAssignment(exp: Exp, id: Id, env: mutable.HashMap[Id, ConcreteValue]): Result[ConcreteValue, String] =
+      interpExp(p, exp, env).flatMap({
+        case UnitValue() => Error(s"assignment of unit value to variable $id")
+        case k =>
+          env.update(id, k)
+          Ok(k)
+      })
   }
 }
