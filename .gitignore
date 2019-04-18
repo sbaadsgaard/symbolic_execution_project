@@ -25,3 +25,5 @@
 *.class
 *.iml
 ./implementation2/SymbolicExecution/out/*
+misc_ressources/
+
