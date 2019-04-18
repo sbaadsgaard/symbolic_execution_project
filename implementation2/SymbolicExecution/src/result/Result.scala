@@ -1,5 +1,5 @@
-import Result.{Error, Ok}
-
+package result
+// read up on type system of scala
 trait  Result[+V, +E] {
   def map[T](f: V => T): Result[T, E] = this match {
     case Ok(v) => Ok(f(v))
@@ -11,7 +11,6 @@ trait  Result[+V, +E] {
     case Error(e) => Error(e)
   }
 }
-object Result {
-  case class Ok[V](v: V) extends Result[V, Nothing]
-  case class Error[E](e: E) extends Result[Nothing, E]
-}
+case class Ok[V](v: V) extends Result[V, Nothing]
+case class Error[E](e: E) extends Result[Nothing, E]
+
