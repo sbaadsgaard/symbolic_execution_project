@@ -10,7 +10,7 @@ import result.{Error, Ok, Result}
 import scala.collection.mutable
 
 class ConcreteInterpreter {
-  def interpExp(p: Prog, e: Exp, env: mutable.HashMap[Id, ConcreteValue]): Result[ConcreteValue, String] = {
+  def interpExp(p: Prog, e: Exp, env: mutable.HashMap[Id, ConcreteValue]): Result[ConcreteValue, String] =
     e match {
 
       case Lit(v) => Ok(v)
@@ -19,7 +19,7 @@ class ConcreteInterpreter {
         case Some(value) => Ok(value)
       }
 
-      case AssignExp(v, exp) => handleAssignment(exp, v.id, env)
+      case AssignExp(v, exp) => handleAssignment(exp, v.id, env, p)
 
       case AExp(e1, e2, op) =>
         for {
@@ -27,7 +27,7 @@ class ConcreteInterpreter {
           v2 <- interpExp(p, e2, env)
           r <- (v1, v2) match {
             case (i: IntValue, j: IntValue) => op match {
-              case Add() => Ok(IntValue(i.v + j.v ))
+              case Add() => Ok(IntValue(i.v + j.v))
               case Sub() => Ok(IntValue(i.v - j.v))
               case Mul() => Ok(IntValue(i.v * j.v))
               case Div() => if (j.v == 0) Error("division by zero") else Ok(IntValue(i.v / j.v))
@@ -53,7 +53,7 @@ class ConcreteInterpreter {
         } yield r
 
 
-      case AssignExp(v, exp) => handleAssignment(exp, v.id, env)
+      case AssignExp(v, exp) => handleAssignment(exp, v.id, env, p)
 
       case IfExp(c, thenExp, elseExp) =>
         interpExp(p, c, env).flatMap({
@@ -78,7 +78,7 @@ class ConcreteInterpreter {
         case Some(f) =>
           if (args.length == f.params.length) {
             val localEnv = env.clone()
-            args.zip(f.params).map(p => handleAssignment(p._1, p._2, localEnv)).find(_.isInstanceOf[Error]) match {
+            args.zip(f.params).map(t => handleAssignment(t._1, t._2, localEnv, p)).find(_.isInstanceOf[Error[String]]) match {
               case Some(err) => err
               case None => interpExp(p, f.body, localEnv)
             }
@@ -91,12 +91,12 @@ class ConcreteInterpreter {
         } yield v
     }
 
-    def handleAssignment(exp: Exp, id: Id, env: mutable.HashMap[Id, ConcreteValue]): Result[ConcreteValue, String] =
-      interpExp(p, exp, env).flatMap({
-        case UnitValue() => Error(s"assignment of unit value to variable $id")
-        case k =>
-          env.update(id, k)
-          Ok(k)
-      })
-  }
+  def handleAssignment(exp: Exp, id: Id, env: mutable.HashMap[Id, ConcreteValue], p: Prog): Result[ConcreteValue, String] =
+    interpExp(p, exp, env).flatMap({
+      case UnitValue() => Error(s"assignment of unit value to variable $id")
+      case k =>
+        env.update(id, k)
+        Ok(k)
+    })
+
 }
