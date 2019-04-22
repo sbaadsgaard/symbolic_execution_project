@@ -64,7 +64,7 @@ object ConcreteGrammar {
 
     case class AExp(e1: Exp, e2: Exp, op: AOp) extends Exp
 
-    case class BExp(e1: Exp, e2: Exp, op: AOp) extends Exp
+    case class BExp(e1: Exp, e2: Exp, op: BOp) extends Exp
 
     case class IfExp(cond: Exp, thenExp: Exp, elseExp: Exp) extends Exp
 
