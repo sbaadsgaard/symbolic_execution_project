@@ -1,4 +1,7 @@
+%https://tex.stackexchange.com/questions/9057/best-practice-for-control-flow-charts
+
 \newcommand{\motexample}{
+		\begin{figure}[!h]
 		\begin{center}
 		\begin{tikzpicture}[%
 		->,
@@ -12,11 +15,11 @@
 			align=left
 		}
 		]
-		\node[noname] (1)                                             {$revenue \gets units \cdot 2$};
+		\node[noname] (1)                                             {$revenue := units \cdot 2$};
 		\node[noname] (2) [below=of 1]                                {$ revenue \geq 16$};
-		\node[noname] (3) [below=of 2]						  {$revenue \gets revenue - 10$};
+		\node[noname] (3) [below=of 2]						  {$revenue := revenue - 10$};
 		\node[noname] (4) [below= of 3]							      {$ revenue < cost$};
-		\node[noname] (5) [below left= of 4]						  {$Error$};
+		\node[noname] (5) [below left= of 4]						  {\textsl{Assertion Error}};
 		\node[noname] (6) [below right= of 4]						  {return $revenue$};
 		
 		
@@ -27,10 +30,13 @@
 		(4) edge 											node[right, below] {$T$} (5)
 		(4) edge											node[right, below] {$F$} (6);
 		\end{tikzpicture}
-	\end{center}	
+	\end{center}
+	\caption{Control-flow graph for \textsc{ComputeRevenue}}
+	\end{figure}
 }
 
 \newcommand{\sumprogram}{
+	\begin{figure}[!h]
 	\begin{center}
 		\begin{tikzpicture}[%
 		->,
@@ -43,9 +49,9 @@
 			draw
 		}
 		]
-		\node[noname] (1)                                             {x = a + b};
-		\node[noname] (2) [below=of 1]                                {y = b + c};
-		\node[noname] (3) [below=of 2] 								  {z = x + y - b};
+		\node[noname] (1)                                             {x := a + b};
+		\node[noname] (2) [below=of 1]                                {y := b + c};
+		\node[noname] (3) [below=of 2] 								  {z := x + y - b};
 		\node[noname] (4) [below=of 3]                                {return z};
 		
 		\path (1) edge                   node {} (2)
@@ -53,9 +59,12 @@
 		(3) edge                   node {} (4);
 		\end{tikzpicture}
 	\end{center}
+	\caption{Control-flow graph for ComputeSum}
+	\end{figure}
 }
 
 \newcommand{\pow}{
+	\begin{figure}[!h]
 	\begin{center}
 		\begin{tikzpicture}[%
 		->,
@@ -68,11 +77,11 @@
 			draw
 		}
 		]
-		\node[noname] (1)                                             {$r = 1$};
-		\node[noname] (2) [below=of 1]                                {$i = 0$};
+		\node[noname] (1)                                             {$r := 1$};
+		\node[noname] (2) [below=of 1]                                {$i := 0$};
 		\node[noname] (3) [below=of 2] 								  {$i < b$};
-		\node[noname] (4) [below=of 3]								  {$r = r\cdot a$};
-		\node[noname] (5) [below=of 4]								  {$i = i + 1$};
+		\node[noname] (4) [below=of 3]								  {$r := r\cdot a$};
+		\node[noname] (5) [below=of 4]								  {$i := i + 1$};
 		\node[noname] (6) [below=of 5]								  {return $r$};
 		
 		
@@ -84,4 +93,6 @@
 		(5) edge [bend left = 50pt]								node {} (3);
 		\end{tikzpicture}
 	\end{center}
+	\caption{Control-flow graph for \textsc{ComputePow}}
+	\end{figure}
 }

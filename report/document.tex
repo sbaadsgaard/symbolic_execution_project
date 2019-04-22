@@ -2,9 +2,9 @@
 \input{preamble.tex}
 \input{programs.tex}
 \graphicspath{ {images/} }
-\newcommand{\simpl}{
-		\textbf{\emph{SImPL}}
-	}
+
+
+\newcommand{\explanguage}{\textsl{EXP }}
 
 
 % Title Page
@@ -32,10 +32,11 @@
 
 \chapter{Principles of Concolic execution}
 
-\chapter{Defining the SIMPL language}
-\chapter{Symbolic execution of SIMPL}
-	\input{chapters/basic-symb-ex.tex}
-\chapter{Concolic execution of SIMPL}
+\chapter{Introducing the language \explanguage}
+	\input{exp.tex}
+\chapter{Symbolic execution of EXP}
+	%\input{chapters/basic-symb-ex.tex}
+\chapter{Concolic execution of EXP}
 
 \chapter{Conclusion}
 	\input{chapters/conclusion.tex}

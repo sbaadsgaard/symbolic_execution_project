@@ -11,9 +11,19 @@
 \usetikzlibrary{positioning,shapes.geometric}
 \usepackage{listings}
 \usepackage[square, numbers]{natbib}
+\usepackage{algorithmicx}
+\usepackage{algpseudocode}
+\usepackage{soul}
+\sethlcolor{gray}
 
 \lstset
 {
 	numbers=left,
 	tabsize=2
 }
+
+% thanks to https://tex.stackexchange.com/a/53359
+\algnewcommand\algorithmicassert{\textbf{assert }}
+\algnewcommand\Assert[1]{\State \algorithmicassert #1}%
+
+

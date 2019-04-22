@@ -1,0 +1,75 @@
+In this chapter we will introduce \explanguage which is a small programming language which consists of top-level functions and expressions.
+
+\section{Syntax of \explanguage}
+
+
+The main building block of \explanguage are expressions which we characters as follows:
+
+\subsubsection{Basic expressions}
+
+The basic expressions consists of integers$\langle I, \rangle$, booleans$\langle B \rangle$,  and variables which we reference by identifiers$\langle Id \rangle$. Furthermore they consist of arithmetic operations and comparisons of integers. Finally an expression can be one expression, followed by another.
+\begin{grammar}
+	<I> ::= 0 | 1 | -1 | 2 | -2 | $\ldots$
+	
+	<B> ::= True | False 
+	
+	<Id> ::= a | b | c | $\ldots$ 
+	
+	<E> ::= <I> 
+	\alt <B>	
+	\alt <Id>
+	\alt <E> + <E> | <E> - <E> | <E> * <E> | <E> / <E>
+	\alt <E> \textless <E> | <E> \textgreater <E> | <E> $\leq$ <E> | <E> $\geq$ <E> | <E> $==$ <E>
+	\alt <E> <E>
+\end{grammar}
+\newpage
+\subsubsection{Variable declaration and assignment}
+Variables implicitly declared, so variable declaration and assignment are contained in the same expression:
+\begin{grammar}
+	<E> ::= <Id> = <Exp>
+\end{grammar} 
+The value of an \textsl{assignment}-expression is the value of the expression on the right-hand side.
+\subsubsection{Conditional expressions}
+\explanguage supports two different conditional expressions, namely \textsl{if-then-else} expressions and \textsl{while} expressions:
+
+\begin{grammar}
+	<E> ::= if <E> then <E> else <E>
+	\alt while <E> do <E>
+\end{grammar}
+The condition expression must evaluate to a boolean value for both these expressions. 
+The value of an \textsl{if-then-else} expression is
+ the value of the expression that ends up being evaluated, depending on the condition. In a \textsl{while} expression, we are not guaranteed that the second expression is evaluated, so we introduce a special \textsl{unit}-value which will be the value of any \textsl{while}-expression.
+
+\subsubsection{Functions}
+\explanguage supports toplevel functions that must be defined at the beginning of the program. A function declaration$\langle F \rangle$ consists of an identifier followed by a parameter list with zero or more identifiers and finally a function body which is an expression.
+
+\begin{grammar}
+	<F> ::= <Id> (<Id>$^{*}$) \{ <E> \}
+\end{grammar}
+
+A function call then consists of an identifier, referencing a function declaration, followed by a list of expressions which is the function arguments:
+
+\begin{grammar}
+	<E> ::= <Id> (<E>$^{*}$) 
+\end{grammar}
+
+The length of the argument list and the parameter list in the declaration must be equal. Furthermore the expressions in the argument list must evaluate to either integers or  boolean values.
+The value of a function call is the value of the expression in the function body.
+
+
+\subsubsection{Programs}
+We finally define the syntax of a \explanguage program, which is zero or more function declarations, followed by a root expression. 
+
+\begin{grammar}
+	<P> ::= <F>$^{*}$ <E>
+\end{grammar}
+
+
+
+
+
+
+
+
+
+	
