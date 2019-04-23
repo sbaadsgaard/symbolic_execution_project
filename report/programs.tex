@@ -18,13 +18,13 @@
 		\node[noname] (1)                                             {$revenue := units \cdot 2$};
 		\node[noname] (2) [below=of 1]                                {$ revenue \geq 16$};
 		\node[noname] (3) [below=of 2]						  {$revenue := revenue - 10$};
-		\node[noname] (4) [below= of 3]							      {$ revenue < cost$};
-		\node[noname] (5) [below left= of 4]						  {\textsl{Assertion Error}};
-		\node[noname] (6) [below right= of 4]						  {return $revenue$};
+		\node[noname] (4) [below= of 3]							      {$ revenue \geq cost$};
+		\node[noname] (5) [below right= of 4]						  {\textsl{Assertion Error}};
+		\node[noname] (6) [below left= of 4]						  {return $revenue$};
 		
 		
 		\path (1) edge             									node {} (2)
-		(2) edge [bend left=70pt] 							node[right] {$F$} (6)
+		(2) edge [bend right=70pt] 							node[right] {$F$} (6)
 		(2) edge 											node[right] {$T$} (3)
 		(3) edge											node {} (4)
 		(4) edge 											node[right, below] {$T$} (5)

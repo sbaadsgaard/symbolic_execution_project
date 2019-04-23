@@ -29,7 +29,7 @@ In this chapter we will cover the theory behind symbolic execution. We will star
 	We would then get the following execution: First we assign $\alpha + \beta$ to $x$. We then assign $\beta + \gamma$ to $y$. Next we assign $(\alpha + \beta) + (\beta + \gamma) - \beta$ to $z$.Finally we return $z = \alpha + \beta + \gamma$. We can conclude that the program correctly computes the sum of $a, b$ and $c$, for any possible value of these.
 	
 \section{Execution paths and path constraints}
-		The program that we considered in the previous section contains no conditional statements, which means it only has a single possible execution path. In general, a program with conditional statements $s_1, s_2, \ldots, s_n$ with conditions $q_1, q_2, \ldots, q_n$, will have several execution paths that are uniquely determined by the value of these conditions. In symbolic execution, we model this by introducing a \emph{path-constraint} for each execution path. The \emph{path-constraint} is a list of boolean expressions $\lbrack q_1, q_2, \ldots, q_n \rbrack$ over the symbolic values, corresponding to conditions from the conditional statements along the path. At the start of an execution, the \emph{path-constraint} only contains the expression $true$, since we have not encountered any conditional statements. to continue execution along a path, $q_1 \land \ldots \land q_n$ must \emph{satisfiable}. To be \emph{satisfiable}, there must exist an assignment of integers to the symbols, such that the conjunction of the expressions evaluates to true. For example, $q = (2\cdot \alpha > \beta) \land (\alpha < \beta)$ is satisfiable, because we can choose $\alpha = 10$ and $\beta = 15$ in which case $q$ evaluates to \emph{true}.
+		The program that we considered in the previous section contains no conditional statements, which means it only has a single possible execution path. In general, a program with conditional statements $s_1, s_2, \ldots, s_n$ with conditions $q_1, q_2, \ldots, q_n$, will have several execution paths that are uniquely determined by the value of these conditions. In symbolic execution, we model this by introducing a \emph{path-constraint} for each execution path. The \emph{path-constraint} is a list of boolean expressions $\lbrack q_1, q_2, \ldots, q_k \rbrack$ over the symbolic values, corresponding to conditions from the conditional statements along the path. At the start of an execution, the \emph{path-constraint} only contains the expression $true$, since we have not encountered any conditional statements. to continue execution along a path, $q_1 \land \ldots \land q_k$ must \emph{satisfiable}. To be \emph{satisfiable}, there must exist an assignment of integers to the symbols, such that the conjunction of the expressions evaluates to true. For example, $q = (2\cdot \alpha > \beta) \land (\alpha < \beta)$ is satisfiable, because we can choose $\alpha = 10$ and $\beta = 15$ in which case $q$ evaluates to \emph{true}.
 		\\ 
 		Whenever we reach a conditional statement with condition $q_k$, we consider the two following expressions:
 		
@@ -62,20 +62,21 @@ In this chapter we will cover the theory behind symbolic execution. We will star
 			\item $true \land \neg (\alpha \cdot 2 \geq 16)$.
 		\end{enumerate}
 		Since both these expressions are satisfiable, we need to fork. We continue execution with a new  \emph{path-constraint} $\lbrack true, (\alpha \cdot 2 \geq 16) \rbrack$, along the \emph{T} path. We also start a new execution with the same variable bindings and a \emph{path-constraint} equal to $\lbrack true, \neg (\alpha \cdot 2 \geq 16) \rbrack$. This execution will continue along the \emph{F} path, and it reaches the return statement and returns $\alpha \cdot 2$.
-		The first execution assigns $2\cdot \alpha - 10$ to $revenue$ and then reach another conditional statement with condition $2\cdot \alpha - 10 < \beta$. We consider the following expressions:
+		The first execution assigns $2\cdot \alpha - 10$ to $revenue$ and then reach another conditional statement with condition $2\cdot \alpha - 10 \geq \beta$. We consider the following expressions:
 		\begin{enumerate}
-			\item $true \land (\alpha \cdot 2 \geq 16) \land (((2\cdot \alpha) - 10) < \beta)$
-			\item $true \land (\alpha \cdot 2 \geq 16) \land \neg (((2\cdot \alpha) - 10) < \beta)$
+			\item $true \land (\alpha \cdot 2 \geq 16) \land (((2\cdot \alpha) - 10) \geq \beta)$
+			\item $true \land (\alpha \cdot 2 \geq 16) \land \neg (((2\cdot \alpha) - 10) \geq \beta)$
 		\end{enumerate}
 		Both of these expressions are satisfiable, so we fork again. In the end we have discovered all three possible execution paths:
 		\begin{enumerate}
 			\item $true \land \neg (\alpha \cdot 2 \geq 16)$
-			\item $true \land (\alpha \cdot 2 \geq 16) \land \neg (((2\cdot \alpha) - 10) < \beta)$
-			\item $true \land (\alpha \cdot 2 \geq 16) \land (((2\cdot \alpha) - 10) < \beta)$.
+			\item $true \land (\alpha \cdot 2 \geq 16) \land (((2\cdot \alpha) - 10) \geq \beta)$
+			\item $true \land (\alpha \cdot 2 \geq 16) 
+			\land \neg (((2\cdot \alpha) - 10) \geq \beta)$.
 		\end{enumerate}
 		
 		The first two \emph{path-constraints} represents the two different paths that leads to the return statement, where the first one returns $2\cdot \alpha$ and the second one returns $2\cdot \alpha - 10$. Inputs that satisfy these, does not result in a crash.
-		The final \emph{path-constraint} represents the path that leads to the $Error$ statement, so we can conclude that all input values that satisfy these constraints, will result in a program crash.
+		The final \emph{path-constraint} represents the path that leads to the \textsl{Assertion Error}, so we can conclude that all input values that satisfy these constraints, will result in a program crash.
 	
 		
 \section{Constraint solving}
@@ -85,8 +86,8 @@ In this chapter we will cover the theory behind symbolic execution. We will star
 	If we consider the motivating example again, we found three different paths, represented by the following \emph{path-constraints}:
 	\begin{enumerate}
 		\item $true \land \neg (\alpha \cdot 2 \geq 16)$
-		\item $true \land (\alpha \cdot 2 \geq 16) \land \neg (2\cdot \alpha - 10 < \beta)$
-		\item $true \land (\alpha \cdot 2 \geq 16) \land (2\cdot \alpha - 10 < \beta)$.
+		\item $true \land (\alpha \cdot 2 \geq 16) \land (2\cdot \alpha - 10 \geq \beta)$
+		\item $true \land (\alpha \cdot 2 \geq 16) \land \neg (2\cdot \alpha - 10 \geq \beta)$.
 	\end{enumerate}
 	
 	By solving for $\alpha$ and $\beta$, we obtain the set of inputs $\{(7, \beta), (8,6), (8, 7)\}$, that covers all possible execution paths. Note that we have excluded a concrete value for $\beta$ in the first test case, because the \emph{path-constraint} does not depend on the value of $\beta$. 
@@ -103,8 +104,8 @@ In this chapter we will cover the theory behind symbolic execution. We will star
 			\begin{algorithmic}
 				\Procedure{ComputePow}{$a,b$}
 				\State $r := 1$
-				\State $i := 0$
-				\While{$i < b$}
+				\State $i := 1$
+				\While{$i \leq b$}
 					\State $ r := r\cdot a$
 					\State $ i := i + 1$
 				\EndWhile
@@ -114,10 +115,10 @@ In this chapter we will cover the theory behind symbolic execution. We will star
 		\end{figure}
 		\pow{}
 		
-	This program contains a \textsl{while}-statement with condition $i < b$. The $k'th$ time we reach this statement we will consider the following two expressions:
+	This program contains a \textsl{while}-statement with condition $i \leq b$. The $k'th$ time we reach this statement we will consider the following two expressions:
 	\begin{enumerate}
-		\item $true \land (0 < \beta) \land (1 < \beta) \land \ldots \land (k-1 < \beta) $
-		\item $true \land (0 < \beta) \land (1 < \beta) \land \ldots \land \neg (k-1 < \beta) $.
+		\item $true \land (1 \leq \beta) \land (2 \leq \beta) \land \ldots \land (k-1 \leq \beta) $
+		\item $true \land (1 \leq \beta) \land (1 \leq \beta) \land \ldots \land \neg (k-1 \leq \beta) $.
 	\end{enumerate}
 	Both of these expressions are satisfiable, so we fork the execution. This is the case for any $k > 0$, which means that the number of possible execution paths is infinite. If we insist on exploring all paths, the symbolic execution will simply continue for ever. 
 	
@@ -152,7 +153,7 @@ In this chapter we will cover the theory behind symbolic execution. We will star
 		\begin{align*}
 			& a_0 +  a_1 \cdot x_1 + a_2\cdot x_2 + \ldots + a_n \cdot x_n \bowtie b\\
 			& where\\
-			& \bowtie \in \{ <, >, \leq, \geq, =, \neq\}\\
+			& \bowtie \in \{\leq, \geq, =\}\\
 			& x_1, \ldots, x_n \in \mathbb{Z}			
 		\end{align*}
 		
@@ -178,7 +179,7 @@ In this chapter we will cover the theory behind symbolic execution. We will star
 	 \begin{align*}
 	 	& a_0 \circ a_1 \cdot x_1 \circ a_2 \cdot x_2 \circ \ldots \circ a_n \cdot x_n \bowtie b \\
 	 	& where \\
-	 	& \bowtie \in  \{  <, >, \leq, \geq, =, \neq \}\\
+	 	& \bowtie \in  \{\leq, \geq, =\}\\
 	 	& \text{\hl{$\circ \in  \{ +, \cdot \}$}}\\
 	 	& x_1, \ldots, x_n \in \mathbb{Z}
 	 \end{align*}
