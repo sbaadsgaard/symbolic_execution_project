@@ -1,62 +1,33 @@
 package grammars
 
-import com.microsoft.z3._
-import grammars.SymbolicGrammar.Result.{Error, Ok}
+import grammars.SymbolicGrammar.SymbolicValue.{SymbolicBool, SymbolicInt}
 
 import scala.collection.immutable.HashMap
 
 object SymbolicGrammar {
 
-  sealed trait Result {
-    //inspired by filter for Option. We supply a default instance of Error, which will be returned if the condition fails
-    def filterWithDefault(default: Result)(f: SymbolicValue => Boolean): Result = this match {
-      case Error(_) => this
-      case Ok(v) => if (f(v)) this else default
-    }
-
-    def map(f: SymbolicValue => SymbolicValue): Result = this match {
-      case Error(_) => this
-      case Ok(v) => Ok(f(v))
-    }
-
-    def flatMap(f: SymbolicValue => Result): Result = this match {
-      case Error(_) => this
-      case Ok(v) => f(v)
-    }
-
-    def map2(b: Result)(f: (SymbolicValue, SymbolicValue) => SymbolicValue): Result =
-      for {
-        a <- this; b1 <- b
-      } yield f(a, b1)
-  }
-
-  object Result {
-
-    case class Ok(v: SymbolicValue) extends Result
-
-    case class Error(msg: String) extends Result
-
-  }
-
-  sealed trait Input
-
-  object Input {
-    case class Concrete(e: Exp) extends Input
-    case class Symbolic(s: String) extends Input
-  }
-
   sealed trait SymbolicValue
 
   object SymbolicValue {
 
-    case class SymExpr(e: ArithExpr) extends SymbolicValue
+    sealed trait SymbolicInt extends SymbolicValue
 
-    case class Constraint(c: BoolExpr) extends  SymbolicValue
-
-    case class IntValue(v: Int) extends SymbolicValue
+    sealed trait SymbolicBool extends SymbolicValue
 
     case class UnitValue() extends SymbolicValue
 
+  }
+
+  object SymbolicInt {
+    case class IntConst(i: Int) extends SymbolicInt
+    case class SymbolicConst(s: String) extends SymbolicInt
+    case class SymbolicAExp(s1: SymbolicInt, s2: SymbolicInt, op: AOp) extends SymbolicInt
+  }
+
+  object SymbolicBool {
+    case class True() extends SymbolicBool
+    case class False() extends SymbolicBool
+    case class SymbolicBExp(b1: SymbolicBool, b2: SymbolicBool, op: BOp) extends SymbolicBool
   }
 
 
@@ -100,19 +71,13 @@ object SymbolicGrammar {
 
     case class AssignExp(v: Var, e: Exp) extends Exp
 
-    case class IfExp(c: BExp, thenExp: Exp, elseExp: Exp) extends Exp
+    case class IfExp(c: Exp, thenExp: Exp, elseExp: Exp) extends Exp
 
     case class WhileExp(c: Exp, doExp: Exp) extends Exp
 
-    case class CallExp(id: Id, args: List[Input]) extends Exp
+    case class CallExp(id: Id, args: List[Exp]) extends Exp
 
     case class ComExp(e1: Exp, e2: Exp) extends Exp
-
-  }
-
-  sealed trait BExp
-
-  object BExp {
 
   }
 
