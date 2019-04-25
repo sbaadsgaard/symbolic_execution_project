@@ -164,7 +164,7 @@ In this chapter we will cover the theory behind symbolic execution. We will star
 	\begin{equation}
 		true \land (\alpha \cdot 2 \geq 16) \land \neg (2\cdot \alpha - 10 < \beta).
 	\end{equation}	
-	We can express this the SMT formula $true \land q_1 \land \neg q_2$ with $q_1 = (\alpha \cdot 2 \geq 16)$ and $q_2 = (2\cdot \alpha - \beta < 10)$, where $q_1$ and $q_2$ are atomic expressions of \textbf{LIA}.
+	We can express this as the \textbf{SMT} formula $true \land q_1 \land \neg q_2$ with $q_1 = (\alpha \cdot 2 \geq 16)$ and $q_2 = (2\cdot \alpha - \beta < 10)$, where $q_1$ and $q_2$ are atomic expressions of \textbf{LIA}.
 	
 	An important property of \textbf{LIA} is the fact that it is decidable. Given a formula over a number of atomic expressions, we can construct a \emph{Integer Linear Program} \textbf{(ILP)} with these expressions as constraints, and a constant objective function. This \textbf{ILP} is feasible if and only if the formula is satisfiable, and we can check the feasibility by using the \emph{branch-and-bound} algorithm.
 	
