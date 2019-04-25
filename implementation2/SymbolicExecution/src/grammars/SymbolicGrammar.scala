@@ -19,15 +19,15 @@ object SymbolicGrammar {
   }
 
   object SymbolicInt {
-    case class IntConst(i: Int) extends SymbolicInt
-    case class SymbolicConst(s: String) extends SymbolicInt
+    case class IntValue(i: Int) extends SymbolicInt
+    case class Symbol(s: String) extends SymbolicInt
     case class SymbolicAExp(s1: SymbolicInt, s2: SymbolicInt, op: AOp) extends SymbolicInt
   }
 
   object SymbolicBool {
     case class True() extends SymbolicBool
     case class False() extends SymbolicBool
-    case class SymbolicBExp(b1: SymbolicBool, b2: SymbolicBool, op: BOp) extends SymbolicBool
+    case class SymbolicBExp(i: SymbolicInt, j: SymbolicInt, op: BOp) extends SymbolicBool
   }
 
 
@@ -49,8 +49,8 @@ object SymbolicGrammar {
 
   object BOp {
 
-    case class Gt() extends BOp
-
+    case class Leq() extends BOp
+    case class Geq() extends BOp
     case class Eq() extends BOp
 
   }

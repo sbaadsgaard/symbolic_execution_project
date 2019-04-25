@@ -1,18 +1,23 @@
-import com.microsoft.z3.{BoolExpr, Context}
-import grammars.SymbolicGrammar.Exp.{AExp, AssignExp, BExp, CallExp, ComExp, IfExp, Lit, Var, WhileExp}
-import grammars.SymbolicGrammar.AOp.{Add, Mul, Sub}
-import grammars.SymbolicGrammar.BOp.Gt
-import grammars.SymbolicGrammar.Input.Symbolic
-import grammars.SymbolicGrammar.SymbolicValue.{Constraint, IntValue, UnitValue}
+import grammars.SymbolicGrammar.AOp.Add
+import grammars.SymbolicGrammar.Exp.{AExp, Lit}
+import grammars.SymbolicGrammar.SymbolicInt.Symbol
+import grammars.SymbolicGrammar.SymbolicValue.SymbolicBool
 import grammars.SymbolicGrammar.{FDecl, Id, Prog, SymbolicValue}
-import interpreters.SymbolicInterpreter
+import interpreters.{PathConstraint, SymbolicInterpreter}
 
 import scala.collection.immutable.HashMap
-import scala.collection.mutable
 
 object SymDriver extends App {
+
   val interpreter = new SymbolicInterpreter(maxForks = 3)
 
+  val t = Prog(
+    HashMap[String, FDecl](),
+    AExp(Lit(Symbol("a")), Lit(Symbol("b")), Add())
+  )
+
+  print(interpreter.interpExp(t, t.e, HashMap[Id, SymbolicValue](), PathConstraint(List.empty[SymbolicBool])))
+  /*
   val test = Prog(
     HashMap[String, FDecl](),
     AExp(Lit(IntValue(1)), Lit(IntValue(7)), Add())
@@ -86,9 +91,24 @@ object SymDriver extends App {
     CallExp(Id("test"), List(Symbolic("a"), Symbolic("b")))
   )
 
+  val test5 = Prog(
+    HashMap("test" -> FDecl(
+      Id("test"),
+      List(Id("x")),
+      IfExp(
+        BExp(Var(Id("x")), Lit(IntValue(2)), Gt()),
+        Lit(IntValue(0)),
+        Lit(IntValue(1))
+      )
+    )),
+    ComExp(
+      AssignExp(Var(Id("y")), CallExp(Id("test"), List(Symbolic("x")))),
+      Var(Id("y"))
+    )
+  )
 
-
-  val ctx = new Context()
-  interpreter.interpProg(test2, new mutable.HashMap[Id, SymbolicValue](), List.empty[Constraint], ctx)
+  interpreter.interpProg(test5, new mutable.HashMap[Id, SymbolicValue](), List.empty[Constraint], ctx)
     .map(p => s"pc: ${p._1.map(_.c.simplify().asInstanceOf[BoolExpr])}  res: ${p._2}").foreach(println)
+
+   */
 }
