@@ -26,4 +26,9 @@ object Result {
     case Nil => Ok(Nil)
     case hd::tl => f(hd).flatMap( w => traverse(tl)(f).map(w :: _))
   }
+
+  def foldLeft[V, W, E](vs: List[V])(z: Result[W, E])(f: (Result[W, E], V) => Result[W, E]): Result[W, E] = vs match {
+    case Nil => z
+    case hd::tl => foldLeft(tl)(f(z, hd))(f)
+  }
 }
