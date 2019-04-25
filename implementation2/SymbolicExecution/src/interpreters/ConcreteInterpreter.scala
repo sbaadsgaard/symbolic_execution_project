@@ -12,7 +12,6 @@ import scala.collection.mutable
 class ConcreteInterpreter {
   def interpExp(p: Prog, e: Exp, env: mutable.HashMap[Id, ConcreteValue]): Result[ConcreteValue, String] =
     e match {
-
       case Lit(v) => Ok(v)
       case Var(id) => env.get(id) match {
         case None => Error(s"variable ${id.s} not defined")
@@ -75,14 +74,11 @@ class ConcreteInterpreter {
 
       case CallExp(id, args) => p.funcs.get(id.s) match {
         case None => Error(s"Undefined function $id")
+        case Some(f) if args.length == f.params.length => Error("formal and actual parameter list differ in length")
         case Some(f) =>
-          if (args.length == f.params.length) {
-            val localEnv = env.clone()
-            args.zip(f.params).map(t => handleAssignment(t._1, t._2, localEnv, p)).find(_.isInstanceOf[Error[String]]) match {
-              case Some(err) => err
-              case None => interpExp(p, f.body, localEnv)
-            }
-          } else Error("formal and actual parameter list differ in length")
+          val localEnv = env.clone()
+          Result.traverse(args.zip(f.params))(t => handleAssignment(t._1, t._2, localEnv, p))
+            .flatMap(_ => interpExp(p, f.body, localEnv))
       }
       case SeqExp(e1, e2) =>
         for {
@@ -93,10 +89,10 @@ class ConcreteInterpreter {
 
   def handleAssignment(exp: Exp, id: Id, env: mutable.HashMap[Id, ConcreteValue], p: Prog): Result[ConcreteValue, String] =
     interpExp(p, exp, env).flatMap({
-      case UnitValue() => Error(s"assignment of unit value to variable $id")
-      case k =>
-        env.update(id, k)
-        Ok(k)
+      case UnitValue() => Error(s"assignment of unit value to variable ${id.s}")
+      case v =>
+        env.update(id, v)
+        Ok(v)
     })
 
 }
