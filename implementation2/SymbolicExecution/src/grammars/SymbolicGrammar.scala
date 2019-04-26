@@ -19,7 +19,7 @@ object SymbolicGrammar {
   }
 
   object SymbolicInt {
-    case class IntValue(i: Int) extends SymbolicInt
+    case class IntValue(v: Int) extends SymbolicInt
     case class Symbol(s: String) extends SymbolicInt
     case class SymbolicAExp(s1: SymbolicInt, s2: SymbolicInt, op: AOp) extends SymbolicInt
   }
@@ -28,6 +28,7 @@ object SymbolicGrammar {
     case class True() extends SymbolicBool
     case class False() extends SymbolicBool
     case class SymbolicBExp(i: SymbolicInt, j: SymbolicInt, op: BOp) extends SymbolicBool
+    case class Not(b: SymbolicBool) extends SymbolicBool
   }
 
 
