@@ -72,7 +72,7 @@ class ConcreteInterpreter {
         case Some(f) if args.length != f.params.length => Error("formal and actual parameter list differ in length")
         case Some(f) =>
           for {
-            localEnv <- Result.foldLeft(args.zip(f.params))(Ok(env))((env1: Result[HashMap[Id, ConcreteValue], String], t) => env1.flatMap(handleAssignment(t._1, t._2, _, p)).map(_._2))
+            localEnv <- Result.foldLeft(args.zip(f.params))(Ok(env))((env1, t) => env1.flatMap(handleAssignment(t._1, t._2, _, p)).map(_._2))
             res <- interpExp(p, f.body, localEnv)
           } yield (res._1, env)
       }
