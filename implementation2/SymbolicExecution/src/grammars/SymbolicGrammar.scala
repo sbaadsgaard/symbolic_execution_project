@@ -76,9 +76,9 @@ object SymbolicGrammar {
 
     case class WhileExp(c: Exp, doExp: Exp) extends Exp
 
-    case class CallExp(id: Id, args: List[Exp]) extends Exp
+    case class CallExp(id: Id, args: List[Lit]) extends Exp
 
-    case class ComExp(e1: Exp, e2: Exp) extends Exp
+    case class SeqExp(e1: Exp, e2: Exp) extends Exp
 
   }
 
