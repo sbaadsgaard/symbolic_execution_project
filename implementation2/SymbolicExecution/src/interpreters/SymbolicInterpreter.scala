@@ -131,9 +131,20 @@ class SymbolicInterpreter(maxForks: Int = 10, ctx: z3.Context = new z3.Context()
       }
       r.flatten
     // So far i make a restriction that Arguments to functions can only be literals. If we allow general expressions i have to do some serious magic.
+    // if functions are side effect free, how about pc? which should be returned
     case CallExp(id, args) => p.funcs.get(id.s) match {
       case None => List(PathResult(pc, Error(s"function ${id.s} not defined"), env))
       case Some(f) if args.length != f.params.length => List(PathResult(pc, Error("formal and actual parameter list differ in length"), env))
+      case Some(f) =>
+        Result.traverse(args)({
+          case Lit(v: UnitValue) => Error("unit value as argument to function")
+          case Lit(v) => Ok(v)
+        }).map(l => l.zip(f.params).foldLeft(env)((nextEnv, t) => nextEnv + (t._2 -> t._1))) match {
+          case Ok(localEnv) => for {
+            pr <- interpExp(p, f.body, localEnv, pc)
+          } yield PathResult(pr.pc, pr.res, env)
+          case Error(msg) => List(PathResult(pc, Error(msg), env))
+        }
     }
 
     case SeqExp(e1, e2) => for {
