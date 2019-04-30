@@ -5,6 +5,7 @@ import grammars.SymbolicGrammar.BOp.Leq
 import grammars.SymbolicGrammar.Exp._
 import grammars.SymbolicGrammar.Stm.{AssignStm, IfStm, SeqStm}
 import grammars.SymbolicGrammar.SymbolicInt.{IntValue, Symbol}
+import grammars.SymbolicGrammar.SymbolicValue.UnitValue
 import grammars.SymbolicGrammar._
 import interpreters.{PathConstraint, SymbolicInterpreter}
 
@@ -85,7 +86,7 @@ object SymDriver extends App {
               AExp(Var(Id("y")), Lit(IntValue(2)), Add()),
               Leq()
             ),
-            AssignStm(Var(Id("res")), Lit(IntValue(1))),
+            AssignStm(Var(Id("res")), Lit(UnitValue())),
             AssignStm(Var(Id("res")), Lit(IntValue(3)))
           )
         ),

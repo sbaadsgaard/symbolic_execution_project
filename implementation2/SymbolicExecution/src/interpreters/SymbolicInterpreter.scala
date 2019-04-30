@@ -136,7 +136,10 @@ class SymbolicInterpreter(maxForks: Int = 10, ctx: z3.Context = new z3.Context()
   def evalFuncBody(p: Prog, body: FBody, env: HashMap[Id, SymbolicValue], pc: PathConstraint): List[ExpRes] =
     for {
       r <- interpStm(p, body.stm, env, pc)
-      e <- interpExp(p, body.returnExp, r.env, r.pc)
+      e <- r.res match {
+        case err: Error[String] => List(ExpRes(err, r.pc))
+        case Ok(_) => interpExp(p, body.returnExp, r.env, r.pc)
+      }
     } yield e
 
   def buildEnv(env: HashMap[Id, SymbolicValue], v: Result[SymbolicValue, String], id: Id): Result[HashMap[Id, SymbolicValue], String] = v.flatMap({
