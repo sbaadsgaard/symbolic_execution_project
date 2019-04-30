@@ -8,7 +8,7 @@ import grammars.SymbolicGrammar.SymbolicBool.{False, Not, SymbolicBExp, True}
 import grammars.SymbolicGrammar.SymbolicInt.{IntValue, Symbol, SymbolicAExp}
 import grammars.SymbolicGrammar.SymbolicValue
 import grammars.SymbolicGrammar.SymbolicValue.{SymbolicBool, SymbolicInt, UnitValue}
-import interpreters.{PathConstraint, PathResult}
+import interpreters.PathConstraint
 import result.Result
 
 class Util(ctx: z3.Context = new z3.Context()) {
@@ -46,5 +46,4 @@ class Util(ctx: z3.Context = new z3.Context()) {
 
   def prettyPrintPC(pc: PathConstraint): String = s"(${pc.conds.map(translateBoolToZ3).toString}, ${pc.ps})"
 
-  def prettyPrintPathResult(ps: PathResult): String = s"(${prettyPrintPC(ps.pc)}, ${prettyPrintRes(ps.res)})"
 }

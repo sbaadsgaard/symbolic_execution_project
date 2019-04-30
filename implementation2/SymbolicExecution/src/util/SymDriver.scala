@@ -1,12 +1,11 @@
 package util
 
-import grammars.SymbolicGrammar.AOp.{Add, Mul}
-import grammars.SymbolicGrammar.BOp.{Geq, Leq}
+import grammars.SymbolicGrammar.AOp.Add
+import grammars.SymbolicGrammar.BOp.Leq
 import grammars.SymbolicGrammar.Exp._
-import grammars.SymbolicGrammar.SymbolicBool.SymbolicBExp
+import grammars.SymbolicGrammar.Stm.{AssignStm, IfStm, SeqStm}
 import grammars.SymbolicGrammar.SymbolicInt.{IntValue, Symbol}
-import grammars.SymbolicGrammar.SymbolicValue.UnitValue
-import grammars.SymbolicGrammar.{FDecl, Id, Prog, SymbolicValue}
+import grammars.SymbolicGrammar._
 import interpreters.{PathConstraint, SymbolicInterpreter}
 
 import scala.collection.immutable.HashMap
@@ -17,10 +16,12 @@ object SymDriver extends App {
 
   val util = new Util()
 
+  /*
   val t = Prog(
     HashMap[String, FDecl](),
     AExp(Lit(Symbol("a")), Lit(Symbol("b")), Add())
   )
+
   val t1 = Prog(
     HashMap[String, FDecl](),
     AExp(
@@ -69,28 +70,32 @@ object SymDriver extends App {
       )
     )
   )
-
+  */
   val t5 = Prog(
-    HashMap("test" -> FDecl(Id("test"), List(Id("x"), Id("y")),
-      IfExp(
-        BExp(
-          Var(Id("x")),
-          AExp(Var(Id("y")), Lit(IntValue(2)), Add()),
-          Leq()
+    HashMap(Id("test") -> FDecl(Id("test"), List(Id("x"), Id("y")),
+      FBody(
+        SeqStm(
+          AssignStm(
+            Var(Id("res")),
+            Lit(IntValue(0))
+          ),
+          IfStm(
+            BExp(
+              Var(Id("x")),
+              AExp(Var(Id("y")), Lit(IntValue(2)), Add()),
+              Leq()
+            ),
+            AssignStm(Var(Id("res")), Lit(IntValue(1))),
+            AssignStm(Var(Id("res")), Lit(IntValue(3)))
+          )
         ),
-        Lit(IntValue(2)),
-        Lit(IntValue(3))
-      )
-    )),
-    CallExp(
-      Id("test"),
-      List(
-        Lit(IntValue(32)),//IfExp(BExp(Lit(Symbol("s1")), Lit(IntValue(3)), Geq()), Lit(IntValue(5)), Lit(IntValue(11))),
-        Lit(IntValue(77))//IfExp(BExp(Lit(Symbol("s2")), Lit(IntValue(3)), Geq()), Lit(IntValue(7)), Lit(IntValue(13)))
-      )
-    ))
+        Var(Id("res"))))
+    ),
+    CallExp(Id("test"), List(Lit(Symbol("x")), Lit(Symbol("y"))))
+  )
 
-  interpreter.interpExp(t5, t5.e, HashMap[Id, SymbolicValue](), PathConstraint())
+
+  interpreter.interpProg(t5)
     .foreach(println(_))
   /*
   interpreter.interpExp(t4 , t4.e, HashMap[Id, SymbolicValue](), PathConstraint(List.empty[SymbolicBool]))

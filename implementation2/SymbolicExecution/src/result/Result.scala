@@ -15,7 +15,6 @@ trait  Result[+V, +E] {
 
 case class Ok[V](v: V) extends Result[V, Nothing]
 case class Error[E](e: E) extends Result[Nothing, E]
-
 object Result {
   def sequence[V, E](vs: List[Result[V,E]]): Result[List[V], E] = vs match {
     case Nil => Ok(Nil)

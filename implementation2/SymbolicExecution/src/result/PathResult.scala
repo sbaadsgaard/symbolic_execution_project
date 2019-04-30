@@ -1,5 +1,0 @@
-package result
-
-trait PathResult {
-
-}

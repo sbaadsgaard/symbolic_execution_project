@@ -5,6 +5,7 @@ import grammars.ConcreteGrammar.BOp._
 import grammars.ConcreteGrammar.ConcreteValue.{False, IntValue, True, UnitValue}
 import grammars.ConcreteGrammar.Exp._
 import grammars.ConcreteGrammar._
+import grammars.SymbolicGrammar.SymbolicValue
 import result.{Error, Ok, Result}
 
 import scala.collection.immutable.HashMap
@@ -66,7 +67,7 @@ class ConcreteInterpreter {
         case (False(), env1) => Ok(UnitValue(), env1)
         case _ => Error("non boolean value as condition in while-expression")
       })
-
+      /*
       case CallExp(id, args) => p.funcs.get(id.s) match {
         case None => Error(s"Undefined function $id")
         case Some(f) if args.length != f.params.length => Error("formal and actual parameter list differ in length")
@@ -76,6 +77,8 @@ class ConcreteInterpreter {
             res <- interpExp(p, f.body, localEnv)
           } yield (res._1, env)
       }
+
+       */
       case SeqExp(e1, e2) =>
         for {
           v1 <- interpExp(p, e1, env)
