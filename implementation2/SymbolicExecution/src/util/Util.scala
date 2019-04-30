@@ -11,7 +11,8 @@ import grammars.SymbolicGrammar.SymbolicValue.{SymbolicBool, SymbolicInt, UnitVa
 import interpreters.PathConstraint
 import result.Result
 
-class Util(ctx: z3.Context = new z3.Context()) {
+object Util {
+  val ctx = new z3.Context()
   def translateIntToZ3(v: SymbolicInt): z3.ArithExpr = v match {
     case IntValue(i) => ctx.mkInt(i)
     case Symbol(s) => ctx.mkIntConst(s)
@@ -32,6 +33,12 @@ class Util(ctx: z3.Context = new z3.Context()) {
       case Eq() => ctx.mkEq(translateIntToZ3(i), translateIntToZ3(j))
     }
     case Not(bool) => ctx.mkNot(translateBoolToZ3(bool))
+  }
+
+
+  def checkSat(pc: PathConstraint, b: SymbolicBool): z3.Status = {
+    val z3Expr = ctx.mkAnd(pc.conds.foldLeft(ctx.mkTrue())((z, v) => ctx.mkAnd(z, translateBoolToZ3(v))), translateBoolToZ3(b))
+    ctx.mkSolver().check(z3Expr)
   }
 
   def prettyPrintRes(r: Result[SymbolicValue, String]): Result[String, String] = r.map {

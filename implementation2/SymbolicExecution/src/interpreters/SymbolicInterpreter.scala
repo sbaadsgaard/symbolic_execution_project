@@ -19,8 +19,6 @@ import scala.collection.immutable.HashMap
 
 class SymbolicInterpreter(maxForks: Int = 10, ctx: z3.Context = new z3.Context()) {
 
-  val util = new Util(ctx)
-
   def interpProg(p: Prog): List[ExpRes] = interpExp(p, p.fCall, HashMap[Id, SymbolicValue](), PathConstraint())
 
   def interpStm(p: Prog, stm: Stm, env: HashMap[Id, SymbolicValue], pc: PathConstraint): List[StmRes] = stm match {
@@ -39,8 +37,8 @@ class SymbolicInterpreter(maxForks: Int = 10, ctx: z3.Context = new z3.Context()
           case True() => interpStm(p, thenStm, env, expRes.pc)
           case False() => interpStm(p, elsStm, env, expRes.pc)
           case b =>
-            val trueBranch = checkSat(pc, b)
-            val falseBranch = checkSat(pc, Not(b))
+            val trueBranch = Util.checkSat(pc, b)
+            val falseBranch = Util.checkSat(pc, Not(b))
             (trueBranch, falseBranch) match {
               case (Status.SATISFIABLE, Status.UNSATISFIABLE) =>
                 interpStm(p, thenStm, env, expRes.pc :+ b)
@@ -147,10 +145,6 @@ class SymbolicInterpreter(maxForks: Int = 10, ctx: z3.Context = new z3.Context()
     case value => Ok(env + (id -> value))
   })
 
-  def checkSat(pc: PathConstraint, b: SymbolicBool): z3.Status = {
-    val z3Expr = ctx.mkAnd(pc.conds.foldLeft(ctx.mkTrue())((z, v) => ctx.mkAnd(z, util.translateBoolToZ3(v))), util.translateBoolToZ3(b))
-    ctx.mkSolver().check(z3Expr)
-  }
 
   def evalInts(i: Int, j: Int, op: AOp): Result[SymbolicValue, String] = op match {
     case Add() => Ok(IntValue(i + j))

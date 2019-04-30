@@ -1,21 +1,19 @@
 package util
 
 import grammars.SymbolicGrammar.AOp.Add
-import grammars.SymbolicGrammar.BOp.Leq
+import grammars.SymbolicGrammar.BOp.{Geq, Leq}
 import grammars.SymbolicGrammar.Exp._
 import grammars.SymbolicGrammar.Stm.{AssignStm, IfStm, SeqStm}
 import grammars.SymbolicGrammar.SymbolicInt.{IntValue, Symbol}
 import grammars.SymbolicGrammar.SymbolicValue.UnitValue
 import grammars.SymbolicGrammar._
-import interpreters.{PathConstraint, SymbolicInterpreter}
+import interpreters.SymbolicInterpreter
 
 import scala.collection.immutable.HashMap
 
 object SymDriver extends App {
 
   val interpreter = new SymbolicInterpreter(maxForks = 3)
-
-  val util = new Util()
 
   /*
   val t = Prog(
@@ -96,8 +94,10 @@ object SymDriver extends App {
   )
 
 
+
   interpreter.interpProg(t5)
     .foreach(println(_))
+
   /*
   interpreter.interpExp(t4 , t4.e, HashMap[Id, SymbolicValue](), PathConstraint(List.empty[SymbolicBool]))
      .foreach(println(_))
