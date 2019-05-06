@@ -1,11 +1,11 @@
 package interpreters
 
 import com.microsoft.z3
-import com.microsoft.z3.Status
+import com.microsoft.z3.Status.{SATISFIABLE, UNKNOWN, UNSATISFIABLE}
 import grammars.SymbolicGrammar.AOp.{Add, Div, Mul, Sub}
-import grammars.SymbolicGrammar.BOp.{Eq, Geq, Leq}
+import grammars.SymbolicGrammar.BOp._
 import grammars.SymbolicGrammar.Exp._
-import grammars.SymbolicGrammar.Stm.{AssignStm, IfStm, SeqStm}
+import grammars.SymbolicGrammar.Stm._
 import grammars.SymbolicGrammar.SymbolicBool.{False, Not, SymbolicBExp, True}
 import grammars.SymbolicGrammar.SymbolicInt.{IntValue, SymbolicAExp}
 import grammars.SymbolicGrammar.SymbolicValue.{SymbolicBool, SymbolicInt, UnitValue}
@@ -28,51 +28,118 @@ class SymbolicInterpreter(maxForks: Int = 10, ctx: z3.Context = new z3.Context()
       } yield expRes.res match {
         case Ok(UnitValue()) => StmRes(Error(s"assignment of unit value to ${variable.id.s}"), env, expRes.pc)
         case Ok(v) => StmRes(Ok(v), env + (variable.id -> v), expRes.pc)
-        case err: Error[String] => StmRes(err, env, expRes.pc)
+        case err => StmRes(err, env, expRes.pc)
       }
     case IfStm(cond, thenStm, elsStm) => for {
-      expRes: ExpRes <- interpExp(p, cond, env, pc)
+      expRes <- interpExp(p, cond, env, pc)
       r <- expRes.res match {
         case Ok(bool: SymbolicBool) => bool match {
           case True() => interpStm(p, thenStm, env, expRes.pc)
           case False() => interpStm(p, elsStm, env, expRes.pc)
           case b =>
-            val trueBranch = Util.checkSat(pc, b)
-            val falseBranch = Util.checkSat(pc, Not(b))
-            (trueBranch, falseBranch) match {
-              case (Status.SATISFIABLE, Status.UNSATISFIABLE) =>
+            (Util.checkSat(pc, b), Util.checkSat(pc, Not(b))) match {
+              case (SATISFIABLE, UNSATISFIABLE) =>
                 interpStm(p, thenStm, env, expRes.pc :+ b)
-              case (Status.UNSATISFIABLE, Status.SATISFIABLE) =>
+              case (UNSATISFIABLE, SATISFIABLE) =>
                 interpStm(p, elsStm, env, expRes.pc :+ Not(b))
-              case (Status.SATISFIABLE, Status.SATISFIABLE) =>
+              case (SATISFIABLE, SATISFIABLE) =>
                 interpStm(p, thenStm, env, expRes.pc :+ b) ++ interpStm(p, elsStm, env, expRes.pc :+ Not(b))
-              case (Status.UNKNOWN, Status.SATISFIABLE) =>
+              case (UNKNOWN, SATISFIABLE) =>
                 interpStm(p, thenStm, env, expRes.pc :+ b unknown()) ++ interpStm(p, elsStm, env, expRes.pc :+ Not(b))
-              case (Status.UNKNOWN, Status.UNSATISFIABLE) =>
+              case (UNKNOWN, UNSATISFIABLE) =>
                 interpStm(p, thenStm, env, expRes.pc :+ b unknown())
-              case (Status.SATISFIABLE, Status.UNKNOWN) =>
+              case (SATISFIABLE, UNKNOWN) =>
                 interpStm(p, thenStm, env, expRes.pc :+ b) ++ interpStm(p, elsStm, env, expRes.pc :+ b unknown())
-              case (Status.UNSATISFIABLE, Status.UNKNOWN) =>
+              case (UNSATISFIABLE, UNKNOWN) =>
                 interpStm(p, elsStm, env, expRes.pc :+ Not(b) unknown())
-              case (Status.UNKNOWN, Status.UNKNOWN) =>
-                interpStm(p, thenStm, env, pc :+ b unknown()) ++ interpStm(p, elsStm, env, expRes.pc :+ Not(b) unknown())
+              case (UNKNOWN, UNKNOWN) =>
+                interpStm(p, thenStm, env, expRes.pc :+ b unknown()) ++ interpStm(p, elsStm, env, expRes.pc :+ Not(b) unknown())
               case _ => List(StmRes(Error("both paths in if statement is unsatisfiable"), env, expRes.pc))
             }
         }
         case Ok(_) => List(StmRes(Error("non boolean value as condition in if statement"), env, expRes.pc))
-        case err: Error[String] => List(StmRes(err, env, expRes.pc))
+
+        case err => List(StmRes(err, env, expRes.pc))
       }
     } yield r
+
+    case wStm: WhileStm => for {
+      expRes <- interpExp(p, wStm.cond, env, pc)
+      r <- expRes.res match {
+        case Ok(bool: SymbolicBool) => bool match {
+          case True() => interpStm(p, SeqStm(wStm.doStm, wStm), env, expRes.pc)
+          case False() => List(StmRes(Ok(UnitValue()), env, expRes.pc))
+          case b =>
+            (Util.checkSat(pc, b), Util.checkSat(pc, Not(b))) match {
+              case (SATISFIABLE, UNSATISFIABLE) =>
+                interpStm(p, SeqStm(wStm.doStm, wStm), env, expRes.pc :+ b)
+              case (UNSATISFIABLE, SATISFIABLE) =>
+                List(StmRes(Ok(UnitValue()), env, expRes.pc :+ Not(b)))
+              case (SATISFIABLE, SATISFIABLE) =>
+                interpStm(p, SeqStm(wStm.doStm, wStm), env, expRes.pc) ++ List(StmRes(Ok(UnitValue()), env, expRes.pc :+ Not(b)))
+              case (UNKNOWN, SATISFIABLE) =>
+                interpStm(p, SeqStm(wStm.doStm, wStm), env, expRes.pc :+ b unknown()) ++ List(StmRes(Ok(UnitValue()), env, expRes.pc :+ Not(b)))
+              case (UNKNOWN, UNSATISFIABLE) =>
+                interpStm(p, SeqStm(wStm.doStm, wStm), env, expRes.pc :+ b unknown())
+              case (SATISFIABLE, UNKNOWN) =>
+                interpStm(p, SeqStm(wStm.doStm, wStm), env, expRes.pc :+ b) ++ List(StmRes(Ok(UnitValue()), env, expRes.pc :+ Not(b) unknown()))
+              case (UNSATISFIABLE, UNKNOWN) =>
+                List(StmRes(Ok(UnitValue()), env, expRes.pc :+ Not(b) unknown()))
+              case (UNKNOWN, UNKNOWN) =>
+                interpStm(p, SeqStm(wStm.doStm, wStm), env, expRes.pc :+ b unknown()) ++ List(StmRes(Ok(UnitValue()), env, expRes.pc :+ Not(b) unknown()))
+              case _ => List(StmRes(Error("both paths in if statement is unsatisfiable"), env, expRes.pc))
+            }
+        }
+        case Ok(_) => List(StmRes(Error("non boolean value as condition in if statement"), env, expRes.pc))
+        case err => List(StmRes(err, env, expRes.pc))
+      }
+    } yield r
+
+
+    case AssertStm(cond) =>
+      for {
+        expRes <- interpExp(p, cond, env, pc)
+        r <- expRes.res match {
+          case Ok(bool: SymbolicBool) => bool match {
+            case True() => List(StmRes(Ok(UnitValue()), env, expRes.pc))
+            case False() => List(StmRes(Error("Assertion violation"), env, expRes.pc))
+            case b =>
+              (Util.checkSat(pc, b), Util.checkSat(pc, Not(b))) match {
+                case (SATISFIABLE, UNSATISFIABLE) =>
+                  List(StmRes(Ok(UnitValue()), env, expRes.pc :+ b))
+                case (UNSATISFIABLE, SATISFIABLE) =>
+                  List(StmRes(Error("Assertion violation"), env, expRes.pc :+ Not(b)))
+                case (SATISFIABLE, SATISFIABLE) =>
+                  List(StmRes(Ok(UnitValue()), env, expRes.pc :+ b), StmRes(Error("Assertion violation"), env, expRes.pc :+ Not(b)))
+                case (UNKNOWN, SATISFIABLE) =>
+                  List(StmRes(Ok(UnitValue()), env, expRes.pc :+ b unknown()), StmRes(Error("Assertion violation"), env, expRes.pc :+ Not(b)))
+                case (UNKNOWN, UNSATISFIABLE) =>
+                  List(StmRes(Ok(UnitValue()), env, expRes.pc :+ b unknown()))
+                case (SATISFIABLE, UNKNOWN) =>
+                  List(StmRes(Ok(UnitValue()), env, expRes.pc :+ b), StmRes(Error("Assertion violation"), env, expRes.pc :+ Not(b) unknown()))
+                case (UNSATISFIABLE, UNKNOWN) =>
+                  List(StmRes(Error("Assertion violation"), env, expRes.pc :+ Not(b) unknown()))
+                case (UNKNOWN, UNKNOWN) =>
+                  List(StmRes(Ok(UnitValue()), env, expRes.pc :+ b unknown()), StmRes(Error("Assertion violation"), env, expRes.pc :+ Not(b) unknown()))
+                case _ => List(StmRes(Error("both paths is unsatisfiable in assert statement"), env, expRes.pc))
+              }
+          }
+          case Ok(_) => List(StmRes(Error("non boolean condition in assert statement"), env, expRes.pc))
+          case err => List(StmRes(err, env, expRes.pc))
+        }
+      } yield r
 
     case SeqStm(s1, s2) =>
       for {
         r1 <- interpStm(p, s1, env, pc)
         r2 <- interpStm(p, s2, r1.env, r1.pc)
       } yield StmRes(
-        r1.res.flatMap(v1 => r2.res.map(v2 => v2)),
+        r1.res.flatMap(_ => r2.res.map(v2 => v2)),
         r2.env,
         r2.pc
       )
+
+    case ExpStm(exp) => interpExp(p, exp, env, pc).map(r => StmRes(r.res, env, r.pc))
     case _ => List(StmRes(Error("not implemented"), env, pc))
   }
 
@@ -114,31 +181,19 @@ class SymbolicInterpreter(maxForks: Int = 10, ctx: z3.Context = new z3.Context()
 
     case CallExp(id, args) => p.funcs.get(id) match {
       case None => List(ExpRes(Error(s"function ${id.s} not defined"), pc))
-      case Some(f) if args.length != f.params.length => List(ExpRes(Error(s"formal and actual parameter list differ in length"), pc))
+      case Some(f) if args.length != f.params.length => List(ExpRes(Error(s"formal and actual parameter list differ in length for ${f.name.s}"), pc))
       case Some(f) =>
         //https://stackoverflow.com/a/44496231/11075156 sådan fik jeg cartesian product.
-        val argsEvaled = args.map(interpExp(p, _, env, pc)) // this is a list that contains a list for each argument, that contains all possible values for the given argument
-      val possibleArgLists = //take the cartesian product over these lists, to get a list of possible argument lists
-        argsEvaled.foldRight(List[List[ExpRes]](Nil))((e1, rest) => e1.flatMap(p => rest.map(p :: _)))
         for {
-          argList <- possibleArgLists
-          r <- argList.zip(f.params).foldLeft[Result[HashMap[Id, SymbolicValue], String]](Ok(env))((next, expResIdPair) => next.flatMap(buildEnv(_, expResIdPair._1.res, expResIdPair._2))) match {
-            // the path constraint is the combined path constraint of each evaluation of the arguments
-            case err: Error[String] => List(ExpRes(Error(s"formal and actual parameter list differ in length"), argList.foldLeft[PathConstraint](pc)((next, expRes) => next ++ expRes.pc)))
-            case Ok(localEnv) => evalFuncBody(p, f.body, localEnv, argList.foldLeft[PathConstraint](pc)((next, expRes) => next ++ expRes.pc))
+          argList <- args.map(interpExp(p, _, env, pc)).foldRight(List[List[ExpRes]](Nil))((e1, rest) => e1.flatMap(p => rest.map(p :: _)))
+          r <- argList.zip(f.params).foldLeft[Result[HashMap[Id, SymbolicValue], String]](Ok(env))((next, t) => next.flatMap(buildEnv(_, t._1.res, t._2))) match {
+            case Ok(localEnv) => interpStm(p, f.stm, localEnv, pc).map(stmRes => ExpRes(stmRes.res, stmRes.pc))
+            case err:Error[String] => List(ExpRes(err, pc))
           }
-        } yield r 
+        } yield r
     }
   }
 
-  def evalFuncBody(p: Prog, body: FBody, env: HashMap[Id, SymbolicValue], pc: PathConstraint): List[ExpRes] =
-    for {
-      r <- interpStm(p, body.stm, env, pc)
-      e <- r.res match {
-        case err: Error[String] => List(ExpRes(err, r.pc))
-        case Ok(_) => interpExp(p, body.returnExp, r.env, r.pc)
-      }
-    } yield e
 
   def buildEnv(env: HashMap[Id, SymbolicValue], v: Result[SymbolicValue, String], id: Id): Result[HashMap[Id, SymbolicValue], String] = v.flatMap({
     case UnitValue() => Error("unit value as argument to function call")
@@ -158,6 +213,8 @@ class SymbolicInterpreter(maxForks: Int = 10, ctx: z3.Context = new z3.Context()
   def compareInts(i: Int, j: Int, op: BOp): Result[SymbolicValue, String] = op match {
     case Leq() => if (i <= j) Ok(True()) else Ok(False())
     case Geq() => if (i >= j) Ok(True()) else Ok(False())
+    case Lt() => if (i < j) Ok(True()) else Ok(False())
+    case Gt() => if (i > j) Ok(True()) else Ok(False())
     case Eq() => if (i == j) Ok(True()) else Ok(False())
   }
 }
@@ -188,6 +245,9 @@ object PathStatus {
   case class Unknown() extends PathStatus
 
 }
+
+
+
 
 
 

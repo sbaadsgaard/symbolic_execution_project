@@ -1,5 +1,7 @@
 package grammars
 
+import grammars.ConcreteGrammar.Exp.{CallExp, Var}
+
 import scala.collection.immutable.HashMap
 
 object ConcreteGrammar {
@@ -60,25 +62,36 @@ object ConcreteGrammar {
 
     case class Var(id: Id) extends Exp
 
-    case class AssignExp(v: Var, e: Exp) extends Exp
-
     case class AExp(e1: Exp, e2: Exp, op: AOp) extends Exp
 
     case class BExp(e1: Exp, e2: Exp, op: BOp) extends Exp
 
-    case class IfExp(cond: Exp, thenExp: Exp, elseExp: Exp) extends Exp
-
-    case class WhileExp(cond: Exp, doExp: Exp) extends Exp
-
     case class CallExp(id: Id, args: List[Exp]) extends Exp
 
-    case class SeqExp(e1: Exp, e2: Exp) extends Exp
+  }
+
+  sealed trait Stm
+
+  object Stm {
+
+    case class AssignStm(v: Var, e: Exp) extends Stm
+
+    case class IfStm(cond: Exp, thenStm: Stm, elsStm: Stm) extends Stm
+
+    case class WhileStm(cond: Exp, doStm: Stm) extends Stm
+
+    case class AssertStm(cond: Exp) extends Stm
+
+    case class SeqStm(s1: Stm, s2: Stm) extends Stm
+
+    case class ExpStm(e: Exp) extends Stm
 
   }
 
 
-  case class FDecl(name: Id, params: List[Id], body: Exp)
+  case class FDecl(name: Id, params: List[Id], stm: Stm)
 
-  case class Prog(funcs: HashMap[String, FDecl], e: Exp)
+
+  case class Prog(funcs: HashMap[String, FDecl], fCall: CallExp)
 
 }

@@ -3,12 +3,12 @@ package util
 import com.microsoft.z3
 import com.microsoft.z3.BoolExpr
 import grammars.SymbolicGrammar.AOp.{Add, Div, Mul, Sub}
-import grammars.SymbolicGrammar.BOp.{Eq, Geq, Leq}
+import grammars.SymbolicGrammar.BOp.{Eq, Geq, Gt, Leq, Lt}
 import grammars.SymbolicGrammar.SymbolicBool.{False, Not, SymbolicBExp, True}
 import grammars.SymbolicGrammar.SymbolicInt.{IntValue, Symbol, SymbolicAExp}
 import grammars.SymbolicGrammar.SymbolicValue
 import grammars.SymbolicGrammar.SymbolicValue.{SymbolicBool, SymbolicInt, UnitValue}
-import interpreters.PathConstraint
+import interpreters.{ExpRes, PathConstraint}
 import result.Result
 
 object Util {
@@ -30,6 +30,8 @@ object Util {
     case SymbolicBExp(i, j, op) => op match {
       case Leq() => ctx.mkLe(translateIntToZ3(i), translateIntToZ3(j))
       case Geq() => ctx.mkGe(translateIntToZ3(i), translateIntToZ3(j))
+      case Lt() => ctx.mkLt(translateIntToZ3(i), translateIntToZ3(j))
+      case Gt() => ctx.mkGt(translateIntToZ3(i), translateIntToZ3(j))
       case Eq() => ctx.mkEq(translateIntToZ3(i), translateIntToZ3(j))
     }
     case Not(bool) => ctx.mkNot(translateBoolToZ3(bool))
@@ -53,4 +55,5 @@ object Util {
 
   def prettyPrintPC(pc: PathConstraint): String = s"(${pc.conds.map(translateBoolToZ3).toString}, ${pc.ps})"
 
+  def prettyPrintExpRes(expRes: ExpRes): String = s"(${prettyPrintRes(expRes.res)}, ${prettyPrintPC(expRes.pc)})"
 }

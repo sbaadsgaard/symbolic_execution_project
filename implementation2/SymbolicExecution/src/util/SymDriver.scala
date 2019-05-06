@@ -1,9 +1,9 @@
 package util
 
-import grammars.SymbolicGrammar.AOp.Add
-import grammars.SymbolicGrammar.BOp.{Geq, Leq}
+import grammars.SymbolicGrammar.AOp.{Add, Mul, Sub}
+import grammars.SymbolicGrammar.BOp.{Geq, Gt, Lt}
 import grammars.SymbolicGrammar.Exp._
-import grammars.SymbolicGrammar.Stm.{AssignStm, IfStm, SeqStm}
+import grammars.SymbolicGrammar.Stm.{AssertStm, AssignStm, ExpStm, IfStm, SeqStm}
 import grammars.SymbolicGrammar.SymbolicInt.{IntValue, Symbol}
 import grammars.SymbolicGrammar.SymbolicValue.UnitValue
 import grammars.SymbolicGrammar._
@@ -69,7 +69,7 @@ object SymDriver extends App {
       )
     )
   )
-  */
+
   val t5 = Prog(
     HashMap(Id("test") -> FDecl(Id("test"), List(Id("x"), Id("y")),
       FBody(
@@ -93,10 +93,84 @@ object SymDriver extends App {
     CallExp(Id("test"), List(Lit(Symbol("x")), Lit(Symbol("y"))))
   )
 
+   */
+  // test if we ever execute invalid combination of function arguments. seems ok, but we do have some duplication in the path constraint
+  /*
+    function test(s) {
+      if (s > 2) {
+        t1 = 1
+      } else {
+        t1 = 2
+      }
+      if (s < 2) {
+        t2 = 3
+      } else {
+        t2 = 5
+      }
+      test1(t1, t2)
+    }
+
+    function test1(v1, v2) {
+      v1 + v2
+    }
+
+    test(symbol(s))
+   */
 
 
-  interpreter.interpProg(t5)
-    .foreach(println(_))
+  val t6 = Prog(
+    HashMap(
+      Id("test") -> FDecl(Id("Test"), List(Id("s")),
+          SeqStm(
+            IfStm(
+              BExp(Var(Id("s")), Lit(IntValue(2)), Gt()),
+              AssignStm(Var(Id("t1")), Lit(IntValue(1))),
+              AssignStm(Var(Id("t1")), Lit(IntValue(2)))
+            ),
+            SeqStm(
+              IfStm(
+                BExp(Var(Id("s")), Lit(IntValue(2)), Lt()),
+                AssignStm(Var(Id("t2")), Lit(IntValue(3))),
+                AssignStm(Var(Id("t2")), Lit(IntValue(5)))),
+              ExpStm(
+                CallExp(Id("test1"), List(Var(Id("t1")), Var(Id("t2"))))
+              )
+            )
+          )
+      ),
+      Id("test1") -> FDecl(Id("test1"), List(Id("v1"), Id("v2")),
+        ExpStm(
+          AExp(Var(Id("v1")), Var(Id("v2")), Add())
+        )
+      )
+    ),
+    CallExp(Id("test"), List(Lit(Symbol("s"))))
+  )
+
+  val t7 = Prog(
+    HashMap(
+      Id("computeRevenue") -> FDecl(Id("computeRevenue"), List(Id("cost"), Id("units")),
+        SeqStm(
+          AssignStm(Var(Id("revenue")), AExp(Var(Id("units")), Lit(IntValue(2)), Mul())),
+          SeqStm(
+            IfStm(
+              BExp(Var(Id("revenue")), Lit(IntValue(16)), Geq()),
+              SeqStm(
+                AssignStm(Var(Id("revenue")), AExp(Var(Id("revenue")), Lit(IntValue(10)), Sub())),
+                AssertStm(BExp(Var(Id("revenue")), Var(Id("cost")), Geq()))
+              ),
+              ExpStm(Lit(UnitValue()))
+            ),
+            ExpStm(Var(Id("revenue")))
+          )
+        )
+      )
+    ),
+    CallExp(Id("computeRevenue"), List(Lit(Symbol("c")), Lit(Symbol("u"))))
+  )
+
+  interpreter.interpProg(t7)
+    .foreach(r => println(Util.prettyPrintExpRes(r)))
 
   /*
   interpreter.interpExp(t4 , t4.e, HashMap[Id, SymbolicValue](), PathConstraint(List.empty[SymbolicBool]))

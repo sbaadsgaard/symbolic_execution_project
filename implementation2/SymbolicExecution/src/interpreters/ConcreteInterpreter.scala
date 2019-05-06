@@ -4,35 +4,32 @@ import grammars.ConcreteGrammar.AOp.{Add, Div, Mul, Sub}
 import grammars.ConcreteGrammar.BOp._
 import grammars.ConcreteGrammar.ConcreteValue.{False, IntValue, True, UnitValue}
 import grammars.ConcreteGrammar.Exp._
+import grammars.ConcreteGrammar.Stm.{AssertStm, AssignStm, ExpStm, IfStm, SeqStm, WhileStm}
 import grammars.ConcreteGrammar._
-import grammars.SymbolicGrammar.SymbolicValue
 import result.{Error, Ok, Result}
 
 import scala.collection.immutable.HashMap
-import scala.collection.mutable
 
 class ConcreteInterpreter {
-  def interpExp(p: Prog, e: Exp, env: HashMap[Id, ConcreteValue]): Result[(ConcreteValue, HashMap[Id, ConcreteValue]), String] =
+  def interpExp(p: Prog, e: Exp, env: HashMap[Id, ConcreteValue]): Result[ConcreteValue, String] =
     e match {
-      case Lit(v) => Ok((v, env))
+      case Lit(v) => Ok(v)
       case Var(id) => env.get(id) match {
         case None => Error(s"variable ${id.s} not defined")
-        case Some(value) => Ok((value, env))
+        case Some(value) => Ok(value)
       }
-
-      case AssignExp(v, exp) => handleAssignment(exp, v.id, env, p)
 
       case AExp(e1, e2, op) =>
         for {
           v1 <- interpExp(p, e1, env)
-          v2 <- interpExp(p, e2, v1._2)
-          r <- (v1._1, v2._1) match {
+          v2 <- interpExp(p, e2, env)
+          r <- (v1, v2) match {
             case (i: IntValue, j: IntValue) => op match {
-              case Add() => Ok(IntValue(i.v + j.v), v2._2)
-              case Sub() => Ok(IntValue(i.v - j.v), v2._2)
-              case Mul() => Ok(IntValue(i.v * j.v), v2._2)
+              case Add() => Ok(IntValue(i.v + j.v))
+              case Sub() => Ok(IntValue(i.v - j.v))
+              case Mul() => Ok(IntValue(i.v * j.v))
               case Div() if j.v == 0 => Error("division by zero")
-              case Div() => Ok(IntValue(i.v / j.v), v2._2)
+              case Div() => Ok(IntValue(i.v / j.v))
             }
             case _ => Error("arithmetic operations on non integer values")
           }
@@ -41,55 +38,70 @@ class ConcreteInterpreter {
       case BExp(e1, e2, op) =>
         for {
           v1 <- interpExp(p, e1, env)
-          v2 <- interpExp(p, e2, v1._2)
-          r <- (v1._1, v2._1) match {
+          v2 <- interpExp(p, e2, env)
+          r <- (v1, v2) match {
             case (i: IntValue, j: IntValue) => op match {
-              case Leq() => if (i.v <= j.v) Ok(True(), v2._2) else Ok(False(), v2._2)
-              case Geq() => if (i.v >= j.v) Ok(True(), v2._2) else Ok(False(), v2._2)
-              case Lt() => if (i.v < j.v) Ok(True(), v2._2) else Ok(False(), v2._2)
-              case Gt() => if (i.v > j.v) Ok(True(), v2._2) else Ok(False(), v2._2)
-              case Eq() => if (i.v == j.v) Ok(True(), v2._2) else Ok(False(), v2._2)
+              case Leq() => if (i.v <= j.v) Ok(True()) else Ok(False())
+              case Geq() => if (i.v >= j.v) Ok(True()) else Ok(False())
+              case Lt() => if (i.v < j.v) Ok(True()) else Ok(False())
+              case Gt() => if (i.v > j.v) Ok(True()) else Ok(False())
+              case Eq() => if (i.v == j.v) Ok(True()) else Ok(False())
             }
             case _ => Error("comparsion of non integer values")
           }
         } yield r
 
-
-      case IfExp(c, thenExp, elseExp) =>
-        interpExp(p, c, env).flatMap({
-          case (True(), env1) => interpExp(p, thenExp, env1)
-          case (False(), env1) => interpExp(p, elseExp, env1)
-          case _ => Error("non boolean value as condition in if-expression")
-        })
-
-      case wexp: WhileExp => interpExp(p, wexp.cond, env).flatMap({
-        case (True(), env1) => interpExp(p, wexp.doExp, env1).flatMap(res => interpExp(p, wexp, res._2))
-        case (False(), env1) => Ok(UnitValue(), env1)
-        case _ => Error("non boolean value as condition in while-expression")
-      })
-      /*
       case CallExp(id, args) => p.funcs.get(id.s) match {
         case None => Error(s"Undefined function $id")
         case Some(f) if args.length != f.params.length => Error("formal and actual parameter list differ in length")
         case Some(f) =>
-          for {
-            localEnv <- Result.foldLeft(args.zip(f.params))(Ok(env))((env1, t) => env1.flatMap(handleAssignment(t._1, t._2, _, p)).map(_._2))
-            res <- interpExp(p, f.body, localEnv)
-          } yield (res._1, env)
+          Result.traverse(args)(interpExp(p, _, env)).flatMap(_.zip(f.params)
+            .foldLeft[Result[HashMap[Id, ConcreteValue], String]](Ok(env))((next, t) => next.flatMap(buildEnv(t._1, t._2, _))))
+            .flatMap(interpStm(p, f.stm, _).flatMap(r => Ok(r._1)))
       }
-
-       */
-      case SeqExp(e1, e2) =>
-        for {
-          v1 <- interpExp(p, e1, env)
-          v2 <- interpExp(p, e2, v1._2)
-        } yield v2
     }
 
-  def handleAssignment(exp: Exp, id: Id, env: HashMap[Id, ConcreteValue], p: Prog): Result[(ConcreteValue, HashMap[Id, ConcreteValue]), String] =
-    interpExp(p, exp, env).flatMap({
-      case (UnitValue(), _) => Error(s"Assignment of unit value to variable ${id.s}")
-      case v => Ok(v._1, v._2 + (id -> v._1))
-    })
+
+  def interpStm(p: Prog, stm: Stm, env: HashMap[Id, ConcreteValue]): Result[(ConcreteValue, HashMap[Id, ConcreteValue]), String] = {
+    stm match {
+      case AssignStm(v, e) => interpExp(p, e, env).flatMap({
+        case UnitValue() => Error(s"Assignment of unit value to variable ${v.id.s}")
+        case value => Ok((value, env + (v.id -> value)))
+      })
+      case IfStm(cond, thenStm, elsStm) => interpExp(p, cond, env).flatMap({
+        case True() => interpStm(p, thenStm, env)
+        case False() => interpStm(p, elsStm, env)
+        case _ => Error("non boolean condition in if expression")
+      })
+      case wStm: WhileStm => interpExp(p, wStm.cond, env).flatMap({
+        case True() => interpStm(p, wStm.doStm, env).flatMap(res => interpStm(p, wStm, res._2))
+        case False() => Ok(UnitValue(), env)
+        case _ => Error("non boolenan condition in while expression")
+
+      })
+
+      case AssertStm(cond) => interpExp(p, cond, env).flatMap({
+        case True() => Ok(UnitValue(), env)
+        case False() => Error("Assertion violation")
+        case _ => Error("Non boolean condition in assertion statement")
+      })
+
+      case SeqStm(s1, s2) =>
+        for {
+          r1 <- interpStm(p, s1, env)
+          r2 <- interpStm(p, s2, r1._2)
+        } yield r2
+
+      case ExpStm(e) => interpExp(p, e, env).flatMap(Ok(_, env))
+    }
+  }
+
+
+  def buildEnv(v: ConcreteValue, id: Id, env: HashMap[Id, ConcreteValue]): Result[HashMap[Id, ConcreteValue], String] =
+    v match {
+      case UnitValue() => Error("unit value as argument to function call")
+      case value => Ok(env + (id -> value))
+    }
+
 
 }

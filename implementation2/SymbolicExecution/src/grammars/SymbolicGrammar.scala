@@ -64,6 +64,10 @@ object SymbolicGrammar {
 
     case class Geq() extends BOp
 
+    case class Lt() extends BOp
+
+    case class Gt() extends BOp
+
     case class Eq() extends BOp
 
   }
@@ -96,16 +100,16 @@ object SymbolicGrammar {
 
     case class WhileStm(cond: Exp, doStm: Stm) extends Stm
 
+    case class AssertStm(cond: Exp) extends Stm
+
     case class SeqStm(s1: Stm, s2: Stm) extends Stm
 
-    case class Empty() extends Stm
+    case class ExpStm(e: Exp) extends Stm
   }
   // a program concists of 1 or more function definitions, followed by a call to one of those functions
   case class Prog(funcs: HashMap[Id, FDecl], fCall: CallExp)
 
-  case class FDecl(name: Id, params: List[Id], body: FBody)
+  case class FDecl(name: Id, params: List[Id], stm: Stm)
 
-  //a function body consists of zero or more statements, followed by a return expression
-  case class FBody(stm: Stm, returnExp: Exp)
 
 }

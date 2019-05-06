@@ -13,7 +13,7 @@ object Driver extends App {
 
 
   val concreteInterpreter = new ConcreteInterpreter()
-
+  /*
   val test = Prog(new HashMap[String, FDecl](), AExp(Lit(IntValue(1)), Lit(IntValue(0)), Add()))
   val test1 = Prog(new HashMap[String, FDecl](),
     SeqExp(
@@ -106,5 +106,5 @@ object Driver extends App {
   )
 
   print(concreteInterpreter.interpExp(test6, test6.e, HashMap[Id, ConcreteValue]()))
-
+  */
 }
