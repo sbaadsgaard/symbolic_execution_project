@@ -51,7 +51,7 @@ class ConcreteInterpreter {
           }
         } yield r
 
-      case CallExp(id, args) => p.funcs.get(id.s) match {
+      case CallExp(id, args) => p.funcs.get(id) match {
         case None => Error(s"Undefined function $id")
         case Some(f) if args.length != f.params.length => Error("formal and actual parameter list differ in length")
         case Some(f) =>
