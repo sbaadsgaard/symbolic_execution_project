@@ -1,13 +1,12 @@
-In this chapter we will introduce \explanguage which is a small programming language which consists of top-level functions and expressions.
+In this chapter we will introduce \explanguage which is a small programming language which consists of top-level functions, expressions and statements.
 
 \section{Syntax of \explanguage}
 
+\explanguage consists of expressions and statements. Expressions evaluates to values and does not change the control flow of the program. A statement evaluates to a value and a possibly updated variable environment. They may also change the control flow of the program through conditional statements. 
 
-The main building block of \explanguage are expressions which we characters as follows:
+\subsection{Expressions}
 
-\subsubsection{Basic expressions}
-
-The basic expressions consists of integers$\langle I, \rangle$, booleans$\langle B \rangle$,  and variables which we reference by identifiers$\langle Id \rangle$. Furthermore they consist of arithmetic operations and comparisons of integers. Finally an expression can be one expression, followed by another.
+Expressions consists of integers$\langle I, \rangle$, booleans$\langle B \rangle$,  and variables that are referenced by identifiers$\langle Id \rangle$. Furthermore they consist of arithmetic operations and comparisons of integers. 
 \begin{grammar}
 	<I> ::= 0 | 1 | -1 | 2 | -2 | $\ldots$
 	
@@ -20,28 +19,41 @@ The basic expressions consists of integers$\langle I, \rangle$, booleans$\langle
 	\alt <Id>
 	\alt <E> + <E> | <E> - <E> | <E> * <E> | <E> / <E>
 	\alt <E> \textless <E> | <E> \textgreater <E> | <E> $\leq$ <E> | <E> $\geq$ <E> | <E> $==$ <E>
-	\alt <E> <E>
 \end{grammar}
-\newpage
-\subsubsection{Variable declaration and assignment}
+
+\subsection{Statements}
+
+
+\subsubsection{variable declaration and assignment}
 Variables implicitly declared, so variable declaration and assignment are contained in the same expression:
 \begin{grammar}
-	<E> ::= <Id> = <Exp>
+	<S> ::= <Id> = <Exp>
 \end{grammar} 
-The value of an \textsl{assignment}-expression is the value of the expression on the right-hand side.
-\subsubsection{Conditional expressions}
-\explanguage supports two different conditional expressions, namely \textsl{if-then-else} expressions and \textsl{while} expressions:
+The value of an \textsl{assignment}-statement is the value of the expression on the right-hand side.  
+\subsubsection{Conditional statements}
+\explanguage supports three different conditional statements, namely \textsl{if-then-else} statements, \textsl{while} statements and \textsl{assert} statements:
 
 \begin{grammar}
-	<E> ::= if <E> then <E> else <E>
-	\alt while <E> do <E>
+	<S> ::= if <E> then <S> else <S>
+	\alt while <E> do <S>
+	\alt assert <E>
 \end{grammar}
-The condition expression must evaluate to a boolean value for both these expressions. 
-The value of an \textsl{if-then-else} expression is
- the value of the expression that ends up being evaluated, depending on the condition. In a \textsl{while} expression, we are not guaranteed that the second expression is evaluated, so we introduce a special \textsl{unit}-value which will be the value of any \textsl{while}-expression.
+Where the condition must be an expression that evaluates to a boolean value. 
+The value of an \textsl{if-then-else} statement is the value of the statement that ends up being evaluated, depending on the condition. In a \textsl{while} statement, we are not guaranteed that the second statement is evaluated, so we introduce a special \textsl{unit} value which will be the value of any \textsl{while} statement. An assert statement will have the \textsl{unit} value if the condition evaluates to \textsl{true}. If the condition evaluates to \textsl{false}, the execution ends with an error.
+
+\bigskip
+
+Finally a statement may simply be an expression, or one statement followed by another:
+
+\begin{grammar}
+	<S> ::= E
+	\alt <S> <S>
+\end{grammar}
+ 
+ 
 
 \subsubsection{Functions}
-\explanguage supports toplevel functions that must be defined at the beginning of the program. A function declaration$\langle F \rangle$ consists of an identifier followed by a parameter list with zero or more identifiers and finally a function body which is an expression.
+\explanguage supports top-level functions that must be defined at the beginning of the program. A function declaration$\langle F \rangle$ consists of an identifier followed by a parameter list with zero or more identifiers and finally a function body which is one or more statements.
 
 \begin{grammar}
 	<F> ::= <Id> (<Id>$^{*}$) \{ <E> \}
@@ -54,14 +66,14 @@ A function call then consists of an identifier, referencing a function declarati
 \end{grammar}
 
 The length of the argument list and the parameter list in the declaration must be equal. Furthermore the expressions in the argument list must evaluate to either integers or  boolean values.
-The value of a function call is the value of the expression in the function body.
+The value of a function call is the value of the final statement evaluated in the function body. Since expressions only return values, functions does not have any side effects.
 
 
 \subsubsection{Programs}
-We finally define the syntax of a \explanguage program, which is zero or more function declarations, followed by a root expression. 
+We finally define the syntax of a \explanguage program, which is one or more function declarations, followed by a function call. 
 
 \begin{grammar}
-	<P> ::= <F>$^{*}$ <E>
+	<P> ::= <F> <F>$^{*}$  <Id> (<E>$^{*}$) 
 \end{grammar}
 
 
