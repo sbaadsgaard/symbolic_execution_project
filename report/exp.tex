@@ -1,4 +1,4 @@
-In this chapter we will introduce \explanguage which is a small programming language which consists of top-level functions, expressions and statements.
+In this chapter we will introduce \explanguage which is a small programming language which consists of top-level functions, expressions and statements. We start by describing the syntax of the language, and then we describe a concrete interpreter for the language.
 
 \section{Syntax of \explanguage}
 
@@ -49,7 +49,7 @@ Finally a statement may simply be an expression, or one statement followed by an
 	<S> ::= E
 	\alt <S> <S>
 \end{grammar}
- 
+ The value of an \textsl{expression} statement is simply the value of the expression, and the value of a \textsl{sequence} statement is the value of evaluating the second statement, using the environment from the first. 
  
 
 \subsubsection{Functions}
@@ -76,12 +76,89 @@ We finally define the syntax of a \explanguage program, which is one or more fun
 	<P> ::= <F> <F>$^{*}$  <Id> (<E>$^{*}$) 
 \end{grammar}
 
+\section{Concrete interpreter for \explanguage}
+To interpret the language, we have implemented an interpreter in the programming language \textsl{Scala}. The implementation is purely functional, so we avoid any state and side-effects. We translate the grammar we just described into the following object:
 
+\begin{figure}[!h]
+	\begin{lstlisting}[style=complex]
+		object ConcreteGrammar {
+			sealed trait ConcreteValue
+			object ConcreteValue {\\
+				case class True() extends ConcreteValue
+				case class False() extends ConcreteValue
+				case class IntValue(v: Int) extends ConcreteValue
+				case class UnitValue() extends ConcreteValue
+			}
+			sealed trait Exp
+			sealed trait Stm
+			case class Id(s: String)
+			case class FDecl(name: Id, params: List[Id], stm: Stm)
+			case class Prog(funcs: HashMap[String, FDecl], fCall: CallExp)	
+		}
+	\end{lstlisting}
+	\caption{High level overview of grammar implementation in scala.}
+\end{figure}
 
+The interpreter consists of the following functions:
 
+\begin{figure}[!h]
+	\begin{lstlisting}[style=complex]
+		class ConcreteInterpreter {
+			def interpProg(p: Prog): Result[ConcreteValue, String]
+			
+			def interpExp(p: Prog,
+						  e: Exp, 
+						  env: HashMap[Id, ConcreteValue]): Result[ConcreteValue, String]
+						  
+			def interpStm(p: Prog,
+						  s: Stm,
+						  env: HashMap[Id, ConcreteValue]):
+						  Result[(ConcreteValue, HashMap[Id, ConcreteValue]), String]
+		}
+	\end{lstlisting}
+	\caption{High level overview of the interpreter implementation in Scala. For the full implementation, see apendix A.}
+\end{figure}
+\newpage
+We use an immutable map of type \textsl{HashMap[Id, ConcreteValue]} to represent our program environment.
 
+The interpretation is kicked off by calling \textsl{interpProg} on a program \textsl{p}, which then call calls \textsl{interpExp(p, p.fCall, env)} where \textsl{env} is a fresh environment. This means that the function referenced by \textsl{p.fCall} acts as a main-function.
 
+\subsection{Error handling}
+We wish to keep our implementation purely functional, so we need to avoid throwing exceptions whenever we encounter an error. Instead we define a trait \textsl{Result[+V, +E]}, that can either be \textsl{Ok(v: V)},  or \textsl{Error(e: E)}, for some types \textsl{V} and \textsl{E}.
 
+\begin{figure}[!h]
+	\begin{lstlisting}[style=complex]
+		trait Result[+V, +E]
+		case class Ok[V](v: V) extends Result[V, Nothing]
+		case class Error[E](e: E) extends Result[Nothing, E]
+	\end{lstlisting}
+\end{figure}
 
+We let \textsl{InterpExp} have return value \textsl{Result[ConcreteValue, String]}, meaning we return \textsl{Ok(v: ConcreteValue)} if we do not encounter any errors, and \textsl{Error(e: String)} if we do. In this case \textsl{e} will be a message that describes what sort of error we encountered. \textsl{InterpStm} has return value 
+ \textsl{Result[(ConcreteValue, HashMap[Id, String]), String]} since we also return a potentially updated environment. 
 
+\subsubsection{Map and flatMap}
+
+We define two functions, \textsl{map} and \textsl{flatMap} for \textsl{Result}:
+
+\begin{lstlisting}[style=complex]
+	def map[T](f: V => T): Result[T, E] = this match {
+	case Ok(v) => Ok(f(v))
+	case Error(e) => Error(e)
+	}
 	
+	def flatMap[EE >: E, T](f: V => Result[T, EE]): Result[T, EE] = this match {
+	case Ok(v) => f(v)
+	case Error(e) => Error(e)
+	}
+\end{lstlisting}
+For some result \textsl{r}, \textsl{map} allows us to apply a function $f: V \rightarrow T$ to \textsl{v} if \textsl{r = Ok(v)}. Otherwise we simply return \textsl{r}. \textsl{flatMap} has the same functionality except that we apply a function that also returns a \textsl{Result}. This way we avoid nesting like \textsl{Ok(Ok(v))}. These two functions allows us to handle errors seamlessly. If, for example we wish to interpret an arithmetic expression \textsl{AExp(e1, e2, Add())}, we simply do 
+
+\begin{lstlisting}[style=simple]
+	interpExp(p, e1, env).flatMap(
+		v1 => interpExp(p, e2, env).map(v2 => v1.v + v2.v)
+	)
+\end{lstlisting}
+If we encounter an error during the interpretation of \textsl{e1} this error is returned immediately. If not we continue by interpreting \textsl{e2}. If we encounter an error here, we return this error, otherwise we continue and return the sum of the two expressions. Here we assume that \textsl{v1} and \textsl{v2} are of type \textsl{IntValue(v: Int)}. The full implementation also includes checking that both expressions evaluate to the proper types.
+
+

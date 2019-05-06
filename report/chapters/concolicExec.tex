@@ -1,0 +1,60 @@
+In this chapter we will introduce \emph{concolic execution}, which is a technique that combines concrete and symbolic execution to explore possible execution paths. We start by describing how the technique works, and then look at the advantages that it offers compared to only using symbolic execution. As in the previous chapter, we restrict our focus to programs that takes integer values as input, and performs arithmetic operations and comparisons on these. 
+
+\section{Concolic execution of a program}
+	During a symbolic execution of a program, we replace the inputs of the program with symbols that acts as placeholders for concrete integer value. The program state consists of variables that reference \emph{symbolic values}, which can either be integers, symbols or arithmetic expressions over these two. During a concolic execution of a program, we maintain two environments. One is a concrete environment $M_c$, which maps variables to concrete integer values. The other is a symbolic environment $M_s$ which maps variables to symbolic values. At the beginning of the execution, the concrete environment is initialized with a random integer value for each input. The symbolic environment is initialized with symbols for each input. 
+
+
+To illustrate concolic execution, we examine the program from the motivating example:
+
+
+\begin{figure}[!h]
+	\begin{algorithmic}[1]
+		\Procedure{ComputeRevenue}{$units, cost$}
+		\State $revenue := 2\cdot units$
+		\If{$revenue \geq 16$}
+		\State $revenue := revenue - 10$
+		\Assert{$revenue \geq cost$}
+		\EndIf
+		\State \Return{$revenue$}
+		\EndProcedure
+	\end{algorithmic}
+\end{figure}
+
+\motexample
+
+\newpage
+
+\noindent First we initialize the two environments. We let 
+\begin{equation*}
+	M_c = \{units = 27, \ cost = 34\}
+\end{equation*}
+ where 27 and 34 is chosen randomly. We let
+\begin{equation*}
+ 	M_s = \{units =\beta, \ cost = \alpha\}
+\end{equation*}
+where $\alpha$ and $\beta$ are symbols. The first statement is an assignment statement, so we get two new environments:
+
+\begin{align*}
+	M_c & = \{units = 27, \ cost = 34, \ revenue = 54 \}\\
+	M_s & = \{units = \alpha, \ cost = \beta, \ revenue = 2\cdot \alpha \}
+\end{align*}
+
+Next, we reach an \textsl{if} statement with condition $revenue \geq 16$. Since $M_c(revenue) = 54$ we follow the \textsl{then} branch. At the same time we get a new \emph{path-constraint} which is $\lbrack (2\cdot \alpha \geq 16) \rbrack$, since we follow the \textsl{then} branch. Next, we reach another \textsl{assign} statement, so we get the following environments:
+
+\begin{align*}
+	M_c & = \{units = 27, \ cost = 34, \ revenue = 44 \}\\
+	M_s & = \{ units = \alpha, \ cost = \beta, \ revenue = 2 \cdot \alpha - 10 \}
+\end{align*}
+
+Next, we reach an \textsl{assert} statement which condition $revenue \geq cost$. Since $M_c(revenue) = 44$ the assertion succeeds. This gives us a new \emph{path-constraint} $\lbrack (2\cdot \alpha \geq 16) , ((2\cdot \alpha - 10) \geq \beta) \rbrack$. Finally we return 44, which finishes one execution path.\\
+To discover a new \pc, we make a new \pc by negating the final condition of the current \pc, so we get $\lbrack (2\cdot \alpha \geq 16), \neg ((2\cdot \alpha - 10) \geq \beta) \rbrack$. To get the next set of concrete input values, $M_c$ we solve the system of constraints given by this \pc
+\begin{align*}
+	2\cdot \alpha \geq 16\\
+	(2\cdot \alpha - 10) < \beta.
+\end{align*}
+This gives us e.g $\alpha = 8$ and $\beta = 7$. 
+We then re execute the program with $units = 8$ and $cost = 7$. This execution will follow the same path until we reach the \textsl{assert}-statement, since we generated the current input by solving for the negation of the \textsl{assert} condition. This time the execution results in an error, due to the assertion being violated. Since we have now explored both possible outcomes of the \textsl{assert} statement, we make a new \pc that just contains the negation of the first condition. So we get $\lbrack \neg (2\cdot \alpha \geq 16) \rbrack$. From this we get e.g $\alpha = 5$. We now re execute the program with $units = 5$ and $cost = 11$, where 11 was chosen randomly. This execution will not folow the \textsl{then} branch in the \textsl{if} statement, so we immediately return $revenue$ which is 10. At this point we have executed each possible outcomes of each conditional statement so have explored all possible execution paths. Finally we have generated the inputs $\{(27, 34), (8,7), (5, 11)\}$ that cover all possible paths. 
+
+\section{Handling undecidable \emph{path-constraints}} 
+In the previous chapter we described how symbolic execution was limited by the ability to decide satisfiability of a \pc. For example, if we are execution a program with inputs $x$ and $y$ and encounter a non linear condition $ 5\cdot x - 10 \leq 3 \cdot y^3$, we might fail to decide the satisfiability of the two branches. In this case we can either decide let the execution fail, or assume that the paths are satisfiable and continue. In the first case, we potentially fail a large number of possible paths, and in the second case we can no longer guarantee that the result we return is sound.\\
+The same issue may arise in concolic execution when trying to generate the concrete input values for the next iteration. If we consider the same program again, and we fail to solve $ 5\cdot x - 10 \leq 3 \cdot y^3$, we do not have to give up. Since we have both a concrete and a symbolic environment, we can replace a symbolic value with a concrete one. If we assume that $y$ has concrete value 2, we can insert this and get $ 5\cdot \alpha - 10 \leq 24$. This is a linear constraint, which we can solve, so we can continue the execution. This of course means that we do not necessarily discover all possible execution paths, since there might exist an execution path with \pc $\lbrack (5\cdot x - 10 \leq 3 \cdot y^3), (y > 49) \rbrack$. This is still an improvement over completely aborting the execution or giving up soundness. 

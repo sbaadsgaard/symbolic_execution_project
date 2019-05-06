@@ -5,7 +5,7 @@
 
 
 \newcommand{\explanguage}{\textsl{SIMPL }}
-
+\newcommand{\pc}{\emph{path-constraint}}
 
 % Title Page
 \title{
@@ -28,15 +28,15 @@
 \chapter{Motivation}
 	\input{motivation.tex}
 \chapter{Principles of symbolic execution}
-	\input{chapters/theory.tex}
+	\input{chapters/symbolicExec.tex}
 
 \chapter{Principles of Concolic execution}
-
+	\input{chapters/concolicExec.tex}
 \chapter{Introducing the language \explanguage}
 	\input{exp.tex}
-\chapter{Symbolic execution of EXP}
-	%\input{chapters/basic-symb-ex.tex}
-\chapter{Concolic execution of EXP}
+\chapter{Symbolic execution of \explanguage}
+	%\input{symbolic_exec_simpl.tex}
+\chapter{Concolic execution of \explanguage}
 
 \chapter{Conclusion}
 	\input{chapters/conclusion.tex}
@@ -44,7 +44,7 @@
 \appendix
 
 \chapter{Source code}
-
+\input{sourcecode.tex}
 \chapter{Figures}
 
 \bibliographystyle{plainnat}
