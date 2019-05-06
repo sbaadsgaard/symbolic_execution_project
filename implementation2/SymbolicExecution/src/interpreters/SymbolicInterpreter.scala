@@ -17,7 +17,7 @@ import util.Util
 import scala.collection.immutable.HashMap
 
 
-class SymbolicInterpreter(maxForks: Int = 10, ctx: z3.Context = new z3.Context()) {
+class SymbolicInterpreter(maxForks: Int = 10) {
 
   def interpProg(p: Prog): List[ExpRes] = interpExp(p, p.fCall, HashMap[Id, SymbolicValue](), PathConstraint())
 
