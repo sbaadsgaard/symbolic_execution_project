@@ -1,5 +1,7 @@
 package interpreters
 
-class ConcolicInterpreter {
+import grammars.ConcreteGrammar.Prog
+import result.Error
 
+class ConcolicInterpreter {
 }
