@@ -92,6 +92,6 @@ object ConcreteGrammar {
   case class FDecl(name: Id, params: List[Id], stm: Stm)
 
 
-  case class Prog(funcs: HashMap[String, FDecl], fCall: CallExp)
+  case class Prog(funcs: HashMap[Id, FDecl], fCall: CallExp)
 
 }
