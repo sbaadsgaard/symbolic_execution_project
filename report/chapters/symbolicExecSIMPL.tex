@@ -20,7 +20,7 @@ A symbolic integer can either be a concrete integer, a symbol, or an arithmetic 
 	\alt <SI> + <SI> | <SI> - <SI> | <SI> * <SI> | <SI> / <SI>  
 \end{grammar}
 
-A symbolic boolean can either be \textsl{True}, \textsl{False} or a comparison of two symbolic integers. Finally, a symbolic boolean can be the negation of a symbolic boolean. This extension is needed to be able to represent the two different \emph{path-constraints} that might arise from a conditional statement.
+A symbolic boolean can either be \textsl{True}, \textsl{False} or a symbolic boolean expression, which is a comparison of two symbolic integers. Finally, a symbolic boolean can be the negation of a symbolic boolean. This extension is needed to be able to represent the two different \emph{path-constraints} that might arise from a conditional statement.
 
 \begin{grammar}
 	<B> ::= True | False 
@@ -41,13 +41,16 @@ To represent a \pc, we implement the following classes
 
 \begin{lstlisting}[style=simple]
 case class PathConstraint(conds: List[SymbolicBool],
-	ps: PathStatus)
+	ps: PathStatus) {
+		def :+(b: SymbolicBool): PathConstraint = 
+		PathConstraint(this.conds :+ b, this.ps)
+	}
 	sealed trait PathResult
 	case class Certain() extends PathResult
 	case class Unknown() extends PathResult
 \end{lstlisting}
 
-This definition consists of two elements. \textsl{conds} is the list of conditions that must be met to follow the given execution path. The \textsl{PathStatus} tells us whether or not we can guarantee that the path constraint is in fact satisfiable. This is necessary because we allow for nonlinear constraints, which our \textbf{SMT} solver may fail to solve. In the case of a failure, we still explore the path but the status of the \pc will be \textsl{Unknown}.  
+The definition of \textsl{PathConstraint} consists of two elements. \textsl{conds} is a  list of symbolic booleans from the conditional statements met so far. The \textsl{PathStatus} tells us whether or not we can guarantee that the path constraint is in fact satisfiable. This is necessary because we allow for nonlinear constraints, which our \textbf{SMT} solver may fail to solve. In the case of a failure, we still explore the path but the status of the \pc will be \textsl{Unknown}. For \textsl{PathConstraint}, we also define a method \textsl{:+} which takes a symbolic boolean, and returns a new \pc with the boolean added to \textsl{conds}. 
 
 \section{Interpretation of expressions}
 To interpret an expression, we define the following function
@@ -56,38 +59,69 @@ To interpret an expression, we define the following function
  def interpExp(p: Prog,
   e: Exp, 
   env: HashMap[Id, SymbolicValue],
-  pc: PathConstraint): List[ExpRes]
+  pc: PathConstraint, 
+  forks: Int): List[ExpRes]
   
  case class ExpRes ExpRes(res: Result[SymbolicValue, String], 
  	pc: PathConstraint)
 \end{lstlisting}
-This definition is similar to the function from the concrete interpreter, except that the function now also takes a \pc as argument. The return type has also changed so that it now includes a \pc aswell. Further we return a list of such pairs, since expression can have several possible values depending on which execution path is followed. 
+This definition is similar to the function from the concrete interpreter, except that the function takes two extra parameters \textsl{pc}, which is the current \pc and \textsl{forks} which is the current number of forks. The return type has also changed so that it now includes a \pc aswell. Further we return a list of such pairs, since expression can have several possible values depending on which execution path is followed. 
 
 \subsection{Arithmetic and boolean expressions}
 Consider an arithmetic expression 
-\textsl{AExp(e1: Exp, e2: Exp, op: AOp)}. When we recursively interpret $e_1$ and $e_2$, we get two lists $L_{e_1}, L_{e_2}$ of possible results. We now need to take the cartesian $L_{e_1} \times L_{e_2}$ of the lists, and for each pair of results, we have to evaluate the arithmetic expression. 
+\textsl{AExp(e1: Exp, e2: Exp, op: AOp)}. When we recursively interpret $e_1$ and $e_2$, we get two lists $L_{e_1}, L_{e_2}$ of possible results. We need to take the cartesian $L_{e_1} \times L_{e_2}$ of the lists, and for each pair of results, we have to evaluate the arithmetic expression. 
 
 To do this we use a \textsl{for-comprehension} which given two lists, iterate over each ordered pair of elements from the two lists.  For each pair, we \textsl{flatMap} over the two results, and if no errors are encountered, we check that both expressions evaluates to integers and compute the result.
-\newpage
-\begin{lstlisting}[style=simple]
-	for {
-		r1 <- interpExp(p, e1, env, pc)
-		r2 <- interpExp(p, e2, env, r1.pc)
-	} yield ExpRes(
-		r1.res.flatMap(v1 => r2.res.flatMap(
-		v2 => (v1, v2) match {
-			case (i: IntValue, j: IntValue) => evalInts(i.v, j.v, op)
-			case (i: SymbolicInt, j: SymbolicInt) => Ok(SymbolicAExp(i, j, op))
-			case _ => Error("arithmetic operations on non integer values")
-		})),
-		r2.p
-	)
-\end{lstlisting}
 Boolean expressions are interpreted in a similar fashion.
 
 \subsection{Function calls}
-Consider a Call expression \textsl{CallExp(id: Id, args: List[Exp])}.
-To interpret this, we must first check that the function is defined and if not, we immediately return an \textsl{Error}. Otherwise, we check that the formal and actual argument list does not differ in length. Finally, if both of these things check out, we must interpret the expressions given in the \textsl{args} list, construct a local environment with the argument and interpret the statement in the function body. 
-Given an argument list $[e_1, e_2, \ldots, e_n]$, we map \textsl{interpExp} on to the list, which gives a list of lists $[L_{e_1}, L_{e_2}, \ldots, L_{e_n}]$. Each list contains the possible values for the given argument, so from this we must construct all possible argument lists, which is the cartesian product over all $n$ lists $L_{e_1} \times L_{e_2} \times \ldots \times L_{e_n}$. For each possible argument list we attempt to build a local environment. If encounter an error during this process, either from the interpretation of the arguments, or from an argument having a unit value, this error will be the of function call with the given argument list. Otherwise the result will be the interpretation of the function body with the local environment. 
+Consider a \textsl{Call}-expression \textsl{CallExp(id: Id, args: List[Exp])}.
+First, we must check that the function is defined and that the formal and actual argument list does not differ in length. If both of these checks out, we map \textsl{interpExp} on to \textsl{args}. This gives a list of lists $[L_{e_1}, L_{e_2}, \ldots, L_{e_n}]$, where the $i'th$ list contains the possible results of interpreting the $i'th$ expression in \textsl{args}.
+We take the cartesian product $L_{e_1} \times L_{e_2} \times \ldots \times L_{e_n}$, which gives us all possible argument lists. For each of these lists, we zip it with formal argument list. This gives a list of the following type \textsl{List[(ExpRes, Id)]}. We attempt to build a local environment by folding over this list with the original environment. If we encounter an error, either from the interpretation of the expressions in \textsl{args} or from an expression evaluating to the unit value, the result of the function call with this argument list will be that error. Otherwise, for each pair of result and id, we make a new environment with the appropriate binding added. We then interpret the statement in the function body  with the local environment, and the result of the function call with this argument list, will be the value of the statement.
 
 \section{Interpreting statements}
+
+To interpret statements, we define the following function:
+
+\begin{lstlisting}[style=simple]
+interpStm(p: Prog, 
+		  stm: Stm, 
+		  env: HashMap[Id, SymbolicValue], 
+		  pc: PathConstraint,
+		  forks: Int): List[StmRes]
+			  
+case class StmRes(res: Result[SymbolicValue, String], 
+				  env: HashMap[Id, SymbolicValue], 
+				  pc: PathConstraint)
+\end{lstlisting}
+
+The signature is similar to \textsl{interpExp}, except that the return type now also includes a possibly updated environment. 
+
+\subsection{Assignment statements}
+Given an \textsl{Assignment}-statement \textsl{AssignStm(v: Var, e: Exp)}, we interpret the expression $e$, and get a list of results for each possible execution path. For each of these results, we return the value of the expression and an updated environment. If the expression resulted in an error, or a unit value, we instead return error and the original environment. 
+
+\subsection{Conditional statements}
+
+We define the following classes to represent each type of conditional statement:
+
+\begin{lstlisting}[style=simple]
+	case class IfStm(cond: Exp, thenStm: Stm, elsStm: Stm)
+	case class WhileStm(cond: Exp, doStm: Stm)
+	case class AssertStm(cond: Exp)
+\end{lstlisting}
+For each possible result of interpreting the condition expression we do the following: If it is either \textsl{True} or \textsl{False}, we follow the appropriate execution path, with the original values of \textsl{pc} and \textsl{forks}. 
+
+\subsubsection{Checking satisfiability}
+If the result is a symbolic boolean expression $b$, we have two potential paths to follow. Consider for example an \textsl{If}-statement \textsl{IfStm(cond, thenStm, elsStm)}. We must check the satisfiability of \textsl{pc :+ b} and \textsl{pc :+ Not(b)}. We do this by calling \textsl{(checkSat(pc, b)} and \textsl{checkSat(pc, Not(b))}. \textsl{checkSat} takes a \pc  and a symbolic boolean $b$, and checks the satisfiability of $b_1 \land b_2 \land \ldots \land b_k \land b$, where $b_1, b_2, \ldots, b_k$ are the symbolic booleans in \textsl{pc.conds}. To do this, we use the \textsl{Java} implementation of the \textsl{Z3} SMT solver. If \textsl{checkSat} reports \textsl{SATISFIABLE}, the given path is eligible for exploration. If it reports \textsl{UNSATISFIABLE}, we can safely ignore the path. If it reports \textsl{UNKNOWN}, we still explore the path, but the new \pc will have its status set to \textsl{UNKNOWN()}. If both calls return either \textsl{SATISFIABLE} or \textsl{UNKNOWN}, we interpret {thenStm} as well as \textsl{elsStm}, and return the concatenation of the two resulting lists. For each statement, we call \textsl{interpStm} with an appropriately updated \pc, and the value of \textsl{forks} will be incremented by 1.
+
+\subsubsection{Uppperbound on number of forks}
+
+The interpretation of \textsl{IfStm} and \textsl{WhileStm} starts with checking whether $forks > maxForks$, in which case we immediately return an Error. We include this check to prevent the interpreter to run forever on programs with an infinite number of execution paths. 
+
+\subsection{Sequence statements}
+
+We define the following class to represent a sequence statement:
+\begin{lstlisting}[style=simple]
+	case class SeqStm(s1: Stm, s2: Stm)
+\end{lstlisting}
+For each possible result from interpreting \textsl{s1}, we interpret \textsl{s2} with the new environment. If the interpretation of \textsl{s1} results in an error, this will be the result of the sequence expression. otherwise it will be the result of the interpretation of \textsl{s2}. 	
