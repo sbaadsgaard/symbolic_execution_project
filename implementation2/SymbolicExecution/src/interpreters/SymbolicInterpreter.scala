@@ -1,6 +1,5 @@
 package interpreters
 
-import com.microsoft.z3
 import com.microsoft.z3.Status.{SATISFIABLE, UNKNOWN, UNSATISFIABLE}
 import grammars.SymbolicGrammar.AOp.{Add, Div, Mul, Sub}
 import grammars.SymbolicGrammar.BOp._
@@ -19,86 +18,90 @@ import scala.collection.immutable.HashMap
 
 class SymbolicInterpreter(maxForks: Int = 10) {
 
-  def interpProg(p: Prog): List[ExpRes] = interpExp(p, p.fCall, HashMap[Id, SymbolicValue](), PathConstraint())
+  def interpProg(p: Prog): List[ExpRes] = interpExp(p, p.fCall, HashMap[Id, SymbolicValue](), PathConstraint(), 0)
 
-  def interpStm(p: Prog, stm: Stm, env: HashMap[Id, SymbolicValue], pc: PathConstraint): List[StmRes] = stm match {
+  def interpStm(p: Prog, stm: Stm, env: HashMap[Id, SymbolicValue], pc: PathConstraint, forks: Int): List[StmRes] = stm match {
     case AssignStm(variable, e) =>
       for {
-        expRes <- interpExp(p, e, env, pc)
+        expRes <- interpExp(p, e, env, pc, forks)
       } yield expRes.res match {
         case Ok(UnitValue()) => StmRes(Error(s"assignment of unit value to ${variable.id.s}"), env, expRes.pc)
         case Ok(v) => StmRes(Ok(v), env + (variable.id -> v), expRes.pc)
         case err => StmRes(err, env, expRes.pc)
       }
-    case IfStm(cond, thenStm, elsStm) => for {
-      expRes <- interpExp(p, cond, env, pc)
-      r <- expRes.res match {
-        case Ok(bool: SymbolicBool) => bool match {
-          case True() => interpStm(p, thenStm, env, expRes.pc)
-          case False() => interpStm(p, elsStm, env, expRes.pc)
-          case b =>
-            (Util.checkSat(pc, b), Util.checkSat(pc, Not(b))) match {
-              case (SATISFIABLE, UNSATISFIABLE) =>
-                interpStm(p, thenStm, env, expRes.pc :+ b)
-              case (UNSATISFIABLE, SATISFIABLE) =>
-                interpStm(p, elsStm, env, expRes.pc :+ Not(b))
-              case (SATISFIABLE, SATISFIABLE) =>
-                interpStm(p, thenStm, env, expRes.pc :+ b) ++ interpStm(p, elsStm, env, expRes.pc :+ Not(b))
-              case (UNKNOWN, SATISFIABLE) =>
-                interpStm(p, thenStm, env, expRes.pc :+ b unknown()) ++ interpStm(p, elsStm, env, expRes.pc :+ Not(b))
-              case (UNKNOWN, UNSATISFIABLE) =>
-                interpStm(p, thenStm, env, expRes.pc :+ b unknown())
-              case (SATISFIABLE, UNKNOWN) =>
-                interpStm(p, thenStm, env, expRes.pc :+ b) ++ interpStm(p, elsStm, env, expRes.pc :+ b unknown())
-              case (UNSATISFIABLE, UNKNOWN) =>
-                interpStm(p, elsStm, env, expRes.pc :+ Not(b) unknown())
-              case (UNKNOWN, UNKNOWN) =>
-                interpStm(p, thenStm, env, expRes.pc :+ b unknown()) ++ interpStm(p, elsStm, env, expRes.pc :+ Not(b) unknown())
-              case _ => List(StmRes(Error("both paths in if statement is unsatisfiable"), env, expRes.pc))
-            }
-        }
-        case Ok(_) => List(StmRes(Error("non boolean value as condition in if statement"), env, expRes.pc))
+    case IfStm(cond, thenStm, elsStm) => if (forks > maxForks) List(StmRes(Error("max depth reached, ignoring further paths"), env, pc))
+    else
+      for {
+        expRes <- interpExp(p, cond, env, pc, forks)
+        r <- expRes.res match {
+          case Ok(bool: SymbolicBool) => bool match {
+            case True() => interpStm(p, thenStm, env, expRes.pc, forks)
+            case False() => interpStm(p, elsStm, env, expRes.pc, forks)
+            case b =>
+              (Util.checkSat(pc, b), Util.checkSat(pc, Not(b))) match {
+                case (SATISFIABLE, UNSATISFIABLE) =>
+                  interpStm(p, thenStm, env, expRes.pc :+ b, forks)
+                case (UNSATISFIABLE, SATISFIABLE) =>
+                  interpStm(p, elsStm, env, expRes.pc :+ Not(b), forks)
+                case (SATISFIABLE, SATISFIABLE) =>
+                  interpStm(p, thenStm, env, expRes.pc :+ b, forks + 1) ++ interpStm(p, elsStm, env, expRes.pc :+ Not(b), forks + 1)
+                case (UNKNOWN, SATISFIABLE) =>
+                  interpStm(p, thenStm, env, expRes.pc :+ b unknown(), forks + 1) ++ interpStm(p, elsStm, env, expRes.pc :+ Not(b), forks + 1)
+                case (UNKNOWN, UNSATISFIABLE) =>
+                  interpStm(p, thenStm, env, expRes.pc :+ b unknown(), forks)
+                case (SATISFIABLE, UNKNOWN) =>
+                  interpStm(p, thenStm, env, expRes.pc :+ b, forks + 1) ++ interpStm(p, elsStm, env, expRes.pc :+ b unknown(), forks + 1)
+                case (UNSATISFIABLE, UNKNOWN) =>
+                  interpStm(p, elsStm, env, expRes.pc :+ Not(b) unknown(), forks)
+                case (UNKNOWN, UNKNOWN) =>
+                  interpStm(p, thenStm, env, expRes.pc :+ b unknown(), forks + 1) ++ interpStm(p, elsStm, env, expRes.pc :+ Not(b) unknown(), forks + 1)
+                case _ => List(StmRes(Error("both paths in if statement is unsatisfiable"), env, expRes.pc))
+              }
+          }
+          case Ok(_) => List(StmRes(Error("non boolean value as condition in if statement"), env, expRes.pc))
 
-        case err => List(StmRes(err, env, expRes.pc))
-      }
-    } yield r
-
-    case wStm: WhileStm => for {
-      expRes <- interpExp(p, wStm.cond, env, pc)
-      r <- expRes.res match {
-        case Ok(bool: SymbolicBool) => bool match {
-          case True() => interpStm(p, SeqStm(wStm.doStm, wStm), env, expRes.pc)
-          case False() => List(StmRes(Ok(UnitValue()), env, expRes.pc))
-          case b =>
-            (Util.checkSat(pc, b), Util.checkSat(pc, Not(b))) match {
-              case (SATISFIABLE, UNSATISFIABLE) =>
-                interpStm(p, SeqStm(wStm.doStm, wStm), env, expRes.pc :+ b)
-              case (UNSATISFIABLE, SATISFIABLE) =>
-                List(StmRes(Ok(UnitValue()), env, expRes.pc :+ Not(b)))
-              case (SATISFIABLE, SATISFIABLE) =>
-                interpStm(p, SeqStm(wStm.doStm, wStm), env, expRes.pc) ++ List(StmRes(Ok(UnitValue()), env, expRes.pc :+ Not(b)))
-              case (UNKNOWN, SATISFIABLE) =>
-                interpStm(p, SeqStm(wStm.doStm, wStm), env, expRes.pc :+ b unknown()) ++ List(StmRes(Ok(UnitValue()), env, expRes.pc :+ Not(b)))
-              case (UNKNOWN, UNSATISFIABLE) =>
-                interpStm(p, SeqStm(wStm.doStm, wStm), env, expRes.pc :+ b unknown())
-              case (SATISFIABLE, UNKNOWN) =>
-                interpStm(p, SeqStm(wStm.doStm, wStm), env, expRes.pc :+ b) ++ List(StmRes(Ok(UnitValue()), env, expRes.pc :+ Not(b) unknown()))
-              case (UNSATISFIABLE, UNKNOWN) =>
-                List(StmRes(Ok(UnitValue()), env, expRes.pc :+ Not(b) unknown()))
-              case (UNKNOWN, UNKNOWN) =>
-                interpStm(p, SeqStm(wStm.doStm, wStm), env, expRes.pc :+ b unknown()) ++ List(StmRes(Ok(UnitValue()), env, expRes.pc :+ Not(b) unknown()))
-              case _ => List(StmRes(Error("both paths in if statement is unsatisfiable"), env, expRes.pc))
-            }
+          case err => List(StmRes(err, env, expRes.pc))
         }
-        case Ok(_) => List(StmRes(Error("non boolean value as condition in if statement"), env, expRes.pc))
-        case err => List(StmRes(err, env, expRes.pc))
-      }
-    } yield r
+      } yield r
+
+    case wStm: WhileStm => if (forks > maxForks) List(StmRes(Error("max depth reached, ignoring further paths"), env, pc))
+    else
+      for {
+        expRes <- interpExp(p, wStm.cond, env, pc, forks)
+        r <- expRes.res match {
+          case Ok(bool: SymbolicBool) => bool match {
+            case True() => interpStm(p, SeqStm(wStm.doStm, wStm), env, expRes.pc, forks)
+            case False() => List(StmRes(Ok(UnitValue()), env, expRes.pc))
+            case b =>
+              (Util.checkSat(pc, b), Util.checkSat(pc, Not(b))) match {
+                case (SATISFIABLE, UNSATISFIABLE) =>
+                  interpStm(p, SeqStm(wStm.doStm, wStm), env, expRes.pc :+ b, forks)
+                case (UNSATISFIABLE, SATISFIABLE) =>
+                  List(StmRes(Ok(UnitValue()), env, expRes.pc :+ Not(b)))
+                case (SATISFIABLE, SATISFIABLE) =>
+                  interpStm(p, SeqStm(wStm.doStm, wStm), env, expRes.pc, forks + 1) ++ List(StmRes(Ok(UnitValue()), env, expRes.pc :+ Not(b)))
+                case (UNKNOWN, SATISFIABLE) =>
+                  interpStm(p, SeqStm(wStm.doStm, wStm), env, expRes.pc :+ b unknown(), forks + 1) ++ List(StmRes(Ok(UnitValue()), env, expRes.pc :+ Not(b)))
+                case (UNKNOWN, UNSATISFIABLE) =>
+                  interpStm(p, SeqStm(wStm.doStm, wStm), env, expRes.pc :+ b unknown(), forks)
+                case (SATISFIABLE, UNKNOWN) =>
+                  interpStm(p, SeqStm(wStm.doStm, wStm), env, expRes.pc :+ b, forks + 1) ++ List(StmRes(Ok(UnitValue()), env, expRes.pc :+ Not(b) unknown()))
+                case (UNSATISFIABLE, UNKNOWN) =>
+                  List(StmRes(Ok(UnitValue()), env, expRes.pc :+ Not(b) unknown()))
+                case (UNKNOWN, UNKNOWN) =>
+                  interpStm(p, SeqStm(wStm.doStm, wStm), env, expRes.pc :+ b unknown(), forks + 1) ++ List(StmRes(Ok(UnitValue()), env, expRes.pc :+ Not(b) unknown()))
+                case _ => List(StmRes(Error("both paths in if statement is unsatisfiable"), env, expRes.pc))
+              }
+          }
+          case Ok(_) => List(StmRes(Error("non boolean value as condition in if statement"), env, expRes.pc))
+          case err => List(StmRes(err, env, expRes.pc))
+        }
+      } yield r
 
 
     case AssertStm(cond) =>
       for {
-        expRes <- interpExp(p, cond, env, pc)
+        expRes <- interpExp(p, cond, env, pc, forks)
         r <- expRes.res match {
           case Ok(bool: SymbolicBool) => bool match {
             case True() => List(StmRes(Ok(UnitValue()), env, expRes.pc))
@@ -131,20 +134,20 @@ class SymbolicInterpreter(maxForks: Int = 10) {
 
     case SeqStm(s1, s2) =>
       for {
-        r1 <- interpStm(p, s1, env, pc)
-        r2 <- interpStm(p, s2, r1.env, r1.pc)
+        r1 <- interpStm(p, s1, env, pc, forks)
+        r2 <- interpStm(p, s2, r1.env, r1.pc, forks)
       } yield StmRes(
         r1.res.flatMap(_ => r2.res.map(v2 => v2)),
         r2.env,
         r2.pc
       )
 
-    case ExpStm(exp) => interpExp(p, exp, env, pc).map(r => StmRes(r.res, env, r.pc))
+    case ExpStm(exp) => interpExp(p, exp, env, pc, forks).map(r => StmRes(r.res, env, r.pc))
     case _ => List(StmRes(Error("not implemented"), env, pc))
   }
 
 
-  def interpExp(p: Prog, e: Exp, env: HashMap[Id, SymbolicValue], pc: PathConstraint): List[ExpRes] = e match {
+  def interpExp(p: Prog, e: Exp, env: HashMap[Id, SymbolicValue], pc: PathConstraint, forks: Int): List[ExpRes] = e match {
 
     case Lit(v) => List(ExpRes(Ok(v), pc))
 
@@ -155,8 +158,8 @@ class SymbolicInterpreter(maxForks: Int = 10) {
 
     case AExp(e1, e2, op) =>
       for {
-        r1 <- interpExp(p, e1, env, pc)
-        r2 <- interpExp(p, e2, env, r1.pc)
+        r1 <- interpExp(p, e1, env, pc, forks)
+        r2 <- interpExp(p, e2, env, r1.pc, forks)
       } yield ExpRes(
         r1.res.flatMap(v1 => r2.res.flatMap(v2 => (v1, v2) match {
           case (i: IntValue, j: IntValue) => evalInts(i.v, j.v, op)
@@ -168,8 +171,8 @@ class SymbolicInterpreter(maxForks: Int = 10) {
 
     case BExp(e1, e2, op) =>
       for {
-        r1 <- interpExp(p, e1, env, pc)
-        r2 <- interpExp(p, e2, env, r1.pc)
+        r1 <- interpExp(p, e1, env, pc, forks)
+        r2 <- interpExp(p, e2, env, r1.pc, forks)
       } yield ExpRes(
         r1.res.flatMap(v1 => r2.res.flatMap(v2 => (v1, v2) match {
           case (i: IntValue, j: IntValue) => compareInts(i.v, j.v, op)
@@ -181,14 +184,15 @@ class SymbolicInterpreter(maxForks: Int = 10) {
 
     case CallExp(id, args) => p.funcs.get(id) match {
       case None => List(ExpRes(Error(s"function ${id.s} not defined"), pc))
-      case Some(f) if args.length != f.params.length => List(ExpRes(Error(s"formal and actual parameter list differ in length for ${f.name.s}"), pc))
+      case Some(f) if args.length != f.params.length =>
+        List(ExpRes(Error(s"formal and actual parameter list differ in length for ${f.name.s}"), pc))
       case Some(f) =>
         //https://stackoverflow.com/a/44496231/11075156 sådan fik jeg cartesian product.
         for {
-          argList <- args.map(interpExp(p, _, env, pc)).foldRight(List[List[ExpRes]](Nil))((e1, rest) => e1.flatMap(p => rest.map(p :: _)))
+          argList <- args.map(interpExp(p, _, env, pc, forks)).foldRight(List[List[ExpRes]](Nil))((e1, rest) => e1.flatMap(p => rest.map(p :: _)))
           r <- argList.zip(f.params).foldLeft[Result[HashMap[Id, SymbolicValue], String]](Ok(env))((next, t) => next.flatMap(buildEnv(_, t._1.res, t._2))) match {
-            case Ok(localEnv) => interpStm(p, f.stm, localEnv, pc).map(stmRes => ExpRes(stmRes.res, stmRes.pc))
-            case err:Error[String] => List(ExpRes(err, pc))
+            case Ok(localEnv) => interpStm(p, f.stm, localEnv, pc, forks).map(stmRes => ExpRes(stmRes.res, stmRes.pc))
+            case err: Error[String] => List(ExpRes(err, pc))
           }
         } yield r
     }

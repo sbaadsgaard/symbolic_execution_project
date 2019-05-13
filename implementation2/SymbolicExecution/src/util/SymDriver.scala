@@ -1,9 +1,9 @@
 package util
 
 import grammars.SymbolicGrammar.AOp.{Add, Mul, Sub}
-import grammars.SymbolicGrammar.BOp.{Geq, Gt, Lt}
+import grammars.SymbolicGrammar.BOp.{Geq, Gt, Leq, Lt}
 import grammars.SymbolicGrammar.Exp._
-import grammars.SymbolicGrammar.Stm.{AssertStm, AssignStm, ExpStm, IfStm, SeqStm}
+import grammars.SymbolicGrammar.Stm.{AssertStm, AssignStm, ExpStm, IfStm, SeqStm, WhileStm}
 import grammars.SymbolicGrammar.SymbolicInt.{IntValue, Symbol}
 import grammars.SymbolicGrammar.SymbolicValue.UnitValue
 import grammars.SymbolicGrammar._
@@ -13,7 +13,7 @@ import scala.collection.immutable.HashMap
 
 object SymDriver extends App {
 
-  val interpreter = new SymbolicInterpreter(maxForks = 3)
+  val interpreter = new SymbolicInterpreter()
 
   /*
   val t = Prog(
@@ -169,7 +169,37 @@ object SymDriver extends App {
     CallExp(Id("computeRevenue"), List(Lit(Symbol("c")), Lit(Symbol("u"))))
   )
 
-  interpreter.interpProg(t7)
+  val t8 = Prog(
+    HashMap(
+      Id("teststuff") -> FDecl(Id("teststuff"), List(Id("a"), Id("b")),
+        SeqStm(
+          AssignStm(Var(Id("r")), Lit(IntValue(1))),
+          SeqStm(
+            AssignStm(Var(Id("i")), Lit(IntValue(1))),
+            SeqStm(
+              WhileStm(
+                BExp(Var(Id("i")), Var(Id("b")), Leq()),
+                SeqStm(
+                  AssignStm(
+                    Var(Id("r")),
+                    AExp(Var(Id("r")), Var(Id("a")), Mul())
+                  ),
+                  AssignStm(
+                    Var(Id("i")),
+                    AExp(Var(Id("i")), Lit(IntValue(1)), Add())
+                  )
+                )
+              ),
+              ExpStm(Var(Id("r")))
+            )
+          )
+        )
+      )
+    ),
+    CallExp(Id("teststuff"), List(Lit(Symbol("a")), Lit(Symbol("b"))))
+  )
+
+  interpreter.interpProg(t8)
     .foreach(r => println(Util.prettyPrintExpRes(r)))
 
   /*
