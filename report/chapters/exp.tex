@@ -84,7 +84,7 @@ We finally define the syntax of a \explanguage program, which is one or more fun
 To interpret the language, we have implemented an interpreter in the programming language \textsl{Scala}. The implementation is purely functional, so we avoid any state and side-effects. We translate the grammar we just described into the following object:
 
 \begin{figure}[!h]
-	\begin{lstlisting}[style=complex]
+	\begin{lstlisting}[style=simple]
 		object ConcreteGrammar {
 			sealed trait ConcreteValue
 			object ConcreteValue {\\
@@ -106,13 +106,14 @@ To interpret the language, we have implemented an interpreter in the programming
 The interpreter consists of the following functions:
 
 \begin{figure}[!h]
-	\begin{lstlisting}[style=complex]
+	\begin{lstlisting}[style=simple]
 		class ConcreteInterpreter {
 			def interpProg(p: Prog): Result[ConcreteValue, String]
 			
 			def interpExp(p: Prog,
 						  e: Exp, 
-						  env: HashMap[Id, ConcreteValue]): Result[ConcreteValue, String]
+						  env: HashMap[Id, ConcreteValue]): 
+						  Result[ConcreteValue, String]
 						  
 			def interpStm(p: Prog,
 						  s: Stm,
@@ -131,7 +132,7 @@ The interpretation is started by a call to \textsl{interpProg} with a program \t
 We wish to keep our implementation purely functional, so we need to avoid throwing exceptions whenever we encounter an error. Instead we define a trait \textsl{Result[+V, +E]}, that can either be \textsl{Ok(v: V)},  or \textsl{Error(e: E)}, for some types \textsl{V} and \textsl{E}.
 
 \begin{figure}[!h]
-	\begin{lstlisting}[style=complex]
+	\begin{lstlisting}[style=simple]
 		trait Result[+V, +E]
 		case class Ok[V](v: V) extends Result[V, Nothing]
 		case class Error[E](e: E) extends Result[Nothing, E]
@@ -145,7 +146,7 @@ We let \textsl{InterpExp} have return value \textsl{Result[ConcreteValue, String
 
 We define two functions, \textsl{map} and \textsl{flatMap} for \textsl{Result}:
 
-\begin{lstlisting}[style=complex]
+\begin{lstlisting}[style=simple]
 	def map[T](f: V => T): Result[T, E] = this match {
 	case Ok(v) => Ok(f(v))
 	case Error(e) => Error(e)
