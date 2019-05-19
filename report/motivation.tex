@@ -21,7 +21,7 @@ Consider a company that sells a product with a unit price 2. If the revenue of a
 
 \newpage
 
-We assert that $revenue \geq cost$ if we apply the discount, since we do not wish to sell at a loss. 
+After applying the discount, we assert that $revenue \geq cost$ since we do not wish to sell at a loss. 
 We would like to know if this program ever fails due an assertion error, so we have to figure out if there exist integer inputs for which the program reaches the \textsl{Assertion Error} node in the control-flow graph. 
 We might try to run the program on different input values, e.g $(units = 8, cost = 5)$, $(units = 7, cost = 10)$. These input values does not cause the program to fail, but we are still not convinced that it wont fail for some other input values.
 By observing the program for some time, we realize that the input must satisfy the following two constraints to fail:
