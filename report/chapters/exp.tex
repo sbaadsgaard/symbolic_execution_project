@@ -100,7 +100,7 @@ To interpret the language, we have implemented an interpreter in the programming
 			case class Prog(funcs: HashMap[String, FDecl], fCall: CallExp)	
 		}
 	\end{lstlisting}
-	\caption{High level overview of grammar implementation in scala.}
+	\caption{High level overview of grammar implementation in \textsl{Scala}.}
 \end{figure}
 
 The interpreter consists of the following functions:
@@ -121,7 +121,7 @@ The interpreter consists of the following functions:
 			Result[(ConcreteValue, HashMap[Id, ConcreteValue]), String]
 	}
 	\end{lstlisting}
-	\caption{High level overview of the interpreter implementation in Scala. For the full implementation, see apendix A.}
+	\caption{High level overview of the interpreter implementation in \textsl{Scala}.}
 \end{figure}
 \newpage
 We use an immutable map of type \textsl{HashMap[Id, ConcreteValue]} to represent our program environment.
@@ -144,7 +144,7 @@ We let \textsl{InterpExp} have return value \textsl{Result[ConcreteValue, String
 
 \subsubsection{Map and flatMap}
 
-We define two functions, \textsl{map} and \textsl{flatMap} for \textsl{Result}:
+We define three functions \textsl{map} and \textsl{flatMap} and traverse:
 
 \begin{lstlisting}[style=simple]
 	def map[T](f: V => T): Result[T, E] = this match {
@@ -165,7 +165,7 @@ We define two functions, \textsl{map} and \textsl{flatMap} for \textsl{Result}:
 	.map(w :: _))
 	}
 \end{lstlisting}
-For some result \textsl{r}, \textsl{map} allows us to apply a function $f: V \rightarrow T$ to \textsl{v} if \textsl{r = Ok(v)}. Otherwise we simply return \textsl{r}. \textsl{flatMap} has the same functionality except that we apply a function that a \textsl{Result}. This way we avoid nesting like \textsl{Ok(Ok(v))}. These two functions allows us to handle errors seamlessly. If, for example we wish to interpret an arithmetic expression \textsl{AExp(e1, e2, Add())}, we simply do 
+For some result \textsl{r}, \textsl{map} allows us to apply a function $f: V \rightarrow T$ to \textsl{v} if \textsl{r = Ok(v)}. Otherwise we simply return \textsl{r}. \textsl{flatMap} has the same functionality except that we apply a function that also returns a \textsl{Result}. This way we avoid nesting like \textsl{Ok(Ok(v))}. These two functions allows us to handle errors seamlessly. If, for example we wish to interpret an arithmetic expression \textsl{AExp(e1, e2, Add())}, we simply do 
 
 \begin{lstlisting}[style=simple]
 	interpExp(p, e1, env).flatMap(
@@ -174,4 +174,4 @@ For some result \textsl{r}, \textsl{map} allows us to apply a function $f: V \ri
 \end{lstlisting}
 If we encounter an error during the interpretation of \textsl{e1} this error is returned immediately. If not we continue by interpreting \textsl{e2}. If we encounter an error here, we return this error, otherwise we continue and return the sum of the two expressions. Here we assume that \textsl{v1} and \textsl{v2} are of type \textsl{IntValue(v: Int)}. The full implementation also includes checking that both expressions evaluate to the proper types.
 \\
-Finally we define a function \textsl{traverse}, that takes a list of type \textsl{V}, a function $f: V \rightarrow Result[W, E]$ and returns a \textsl{Result[List[W]], E]}. We use this function to interpret functions calls \textsl{CallExp(Id, List[Exp])}. To do this, we need to evaluate the argument list, and if we do not encounter any errors, construct a local environment and evaluate the function body. We could simply map \textsl{interpExp} on to the argument list, and check for each element in the resulting list if it is an error. This would require two passes over the list. Instead, \textsl{traverse} applies $f$ to each element in the list, and if it results in an error, we immediately return this error. Otherwise we prepend the resulting value onto the result of traversing the remaining list. We only pass over the list once, and we immediately return the first error encountered.
+Finally we define a function \textsl{traverse}, that takes a list of type \textsl{V}, a function $f: V \rightarrow Result[W, E]$ and returns a \textsl{Result[List[W], E]}. We use this function to interpret functions calls \textsl{CallExp(Id, List[Exp])}. To do this, we need to evaluate the argument list, and if we do not encounter any errors, construct a local environment and evaluate the function body. We could simply map \textsl{interpExp} on to the argument list, and check for each element in the resulting list if it is an error. This would require two passes over the list. Instead, \textsl{traverse} applies $f$ to each element in the list, and if it results in an error, we immediately return this error. Otherwise we prepend the resulting value onto the result of traversing the remaining list. We only pass over the list once, and we immediately return the first error encountered.

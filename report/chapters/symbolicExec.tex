@@ -47,8 +47,8 @@ In this chapter we will cover the theory behind symbolic execution. We will star
 			
 			\item \textbf{Both expressions are satisfiable}: In this case, the execution can continue along two paths; one corresponding to the condition being \emph{false} and one being \emph{true}. At this point we \emph{fork} the execution by considering two different executions of the remaining part of the program. Both executions start with the same variable state and \emph{path-constraints} that are the same
 			 up to the final element. One will have $q_k$ as the final element and the other will have $\neg q_k$. 
-			These two executions will continue along different execution paths that differ from this conditional statement and onward.
-		\end{itemize} \cite{King76}
+			These two executions will continue along different execution paths that differ from this conditional statement and onward \cite{King76}.
+		\end{itemize} 
 		
 		To illustrate this, we consider the program from the motivating example, that takes input parameters $units$ and $costs$:
 		
@@ -167,7 +167,7 @@ In this chapter we will cover the theory behind symbolic execution. We will star
 	\end{equation}	
 	We can express this as the \textbf{SMT} formula $true \land q_1 \land \neg q_2$ with $q_1 = (\alpha \cdot 2 \geq 16)$ and $q_2 = (2\cdot \alpha - \beta < 10)$, where $q_1$ and $q_2$ are atomic expressions of \textbf{LIA}.
 	
-	An important property of \textbf{LIA} is the fact that it is decidable. Given a formula over a number of atomic expressions, we can construct a \emph{Integer Linear Program} \textbf{(ILP)} with these expressions as constraints, and a constant objective function. This \textbf{ILP} is feasible if and only if the formula is satisfiable, and we can check the feasibility by using the \emph{branch-and-bound} algorithm.
+	An important property of \textbf{LIA} is the fact that it is decidable. Given a formula over a number of atomic expressions, we can construct a \emph{Integer Linear Program} \textbf{(ILP)} with these expressions as constraints, and a constant objective function. This \textbf{ILP} is feasible if and only if the formula is satisfiable. We can check the feasibility of the \textbf{ILP} using the \emph{branch-and-bound} algorithm. If it is feasible, we will also get a satisfying assignment. 
 	
 	\subsection{Undecidable theories}
 	
