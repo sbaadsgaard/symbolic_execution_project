@@ -24,11 +24,11 @@
 		
 		
 		\path (1) edge             									node {} (2)
-		(2) edge [bend right=70pt] 							node[right] {$F$} (6)
-		(2) edge 											node[right] {$T$} (3)
+		(2) edge [bend right=70pt] 							node[right] {$False$} (6)
+		(2) edge 											node[right] {$True$} (3)
 		(3) edge											node {} (4)
-		(4) edge 											node[right, below] {$T$} (5)
-		(4) edge											node[right, below] {$F$} (6);
+		(4) edge 											node[right, below] {$True$} (5)
+		(4) edge											node[right, below] {$False$} (6);
 		\end{tikzpicture}
 	\end{center}
 	\caption{Control-flow graph for \textsc{ComputeRevenue}}
@@ -73,7 +73,7 @@
 		node distance=1cm,
 		noname/.style={%
 			minimum width=5em,
-			minimum height=2em,
+			minimum height=3em,
 			draw
 		}
 		]
@@ -87,8 +87,8 @@
 		
 		\path (1) edge             									node {} (2)
 		(2) edge                  								    node {} (3)
-		(3) edge [bend left = 50pt] 								node[right] {$F$} (6)
-		(3) edge                 								    node[right] {$T$} (4)
+		(3) edge [bend left = 50pt] 								node[right] {$False$} (6)
+		(3) edge                 								    node[right] {$True$} (4)
 		(4) edge 												    node {} (5)
 		(5) edge [bend left = 50pt]								node {} (3);
 		\end{tikzpicture}
@@ -96,3 +96,65 @@
 	\caption{Control-flow graph for \textsc{ComputePow}}
 	\end{figure}
 }
+
+\newcommand{\ifstm}{
+	\begin{figure}[!h]
+		\begin{center}
+			\begin{tikzpicture}[%
+			font=\scriptsize,
+			->,
+			shorten >=2pt,
+			>=stealth,
+			node distance=1cm,
+			noname/.style={%
+				minimum width=5em,
+				minimum height=3em,
+				draw
+			}
+			]
+			\node[noname] (1)    {\begin{tabular}{c}
+				\textbf{If} $q_k$ \textbf{then} \textsl{statement 1} \textbf{else} \textsl{statement 2}\\
+				Current PC: $[q_1, q_2, \ldots, q_{k-1}]$
+				\end{tabular}};
+			\node[noname] (2) [below left= of 1] {\begin{tabular}{c}
+				\textsl{statement 1}\\
+				New PC: $[q_1, q_2, \ldots, q_k]$
+				\end{tabular}};
+			\node[noname] (3) [below right= of 1] {\begin{tabular}{c}
+				\textsl{statement 2}\\
+				New PC: $[q_1, q_2, \ldots, \neg q_k]$
+				\end{tabular}};
+			
+			\path (1) edge node[below right, align=center] {$q_1\land\ldots \land q_k$ \\ satisfiable} (2) 
+			(1) edge node[below left, align=center] {$q_1\land \ldots \land \neg q_k$\\satisfiable} (3);	
+ 			\end{tikzpicture}
+		\end{center}
+		\caption{Abstract overview of the symbolic execution of an \textsl{if}-statement, which potentially leads to two new execution paths, each with a new \pc.}
+	\end{figure}
+}
+\iffalse
+\newcommand{\exectree}{
+	\begin{figure}[!h]
+		\begin{center}
+			\begin{tikzpicture}[%
+			font=\scriptsize,
+			->,
+			shorten >=2pt,
+			>=stealth,
+			node distance=1cm,
+			noname/.style={%
+				minimum width=5em,
+				minimum height=3em,
+				draw
+			}
+			]
+			\node[noname] (1) {$revenue := \alpha \cdot 2$};
+			\node[noname] (2) [below= of 1] {\textbf{if} $\alpha \geq 16$};
+			\node[noname] ()
+			\end{tikzpicture}
+		\end{center}
+	\end{figure}
+
+}
+
+\fi
