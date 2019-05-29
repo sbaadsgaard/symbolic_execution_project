@@ -1,3 +1,10 @@
+
+In chapter 5 and 6,
+
+\iffalse
+ we want to demonstrate the differences between concrete and symbolic execution. To do so we have designed a small programming language called \explanguage, and implemented a concrete and a symbolic interpreter for the language. We have decided to make a purely functional implementation of both, 
+ \fi
+
 In this chapter we will introduce \explanguage which is a small programming language which consists of top-level functions, expressions and statements. We start by describing the syntax of the language, and then we describe a concrete interpreter for the language.
 
 \section{Syntax of \explanguage}
@@ -8,26 +15,50 @@ In this chapter we will introduce \explanguage which is a small programming lang
 \subsection{Expressions}
 
 
-Expressions consists of concrete values which can be integers$\langle I, \rangle$, booleans$\langle B \rangle$, and a special \textsl{unit} value. Furthermore they consist of variables that are referenced by identifiers$\langle Id \rangle$. Finally they consist of arithmetic operations and comparisons of integers. 
-\begin{grammar}
-	<I> ::= 0 | 1 | -1 | 2 | -2 | $\ldots$
-	
-	<B> ::= True | False
-	
-	<CV> ::= <I> 
-	\alt <B>
-	\alt unit  
-	
-	<Id> ::= a | b | c | $\ldots$ 
-	
-	<E> ::= <CV>
-	\alt <E> + <E> | <E> - <E> | <E> * <E> | <E> / <E>
-	\alt <E> \textless <E> | <E> \textgreater <E> | <E> $\leq$ <E> | <E> $\geq$ <E> | <E> $==$ <E>
-\end{grammar}
+Expressions consists of concrete values which can be integers$\langle I, \rangle$, booleans$\langle B \rangle$, and a special \textsl{unit} value. Furthermore they consist of variables referenced by identifiers. Finally they consist of arithmetic operations on integers and comparison of integers 
+
+\begin{alignat*}{3}
+	int & \in \textsc{Integer} && := \quad 0 \alt 1 \alt -1 \alt \ldots\\
+	bool & \in \textsc{Boolean} && := \quad True \alt False\\
+	val & \in \textsc{ConcreteValue} && := \quad int \alt bool \alt unit\\
+	id & \in \textsc{Identifier} && := \quad a \alt b \alt c \alt \ldots \\
+	exp & \in \textsc{Expression} && := \quad val \alt id\\ & && \alt exp + exp \alt exp - exp \alt exp * exp \alt exp / exp\\
+	& && \alt exp < exp \alt exp > exp \alt exp \leq exp \alt exp \geq exp \alt exp == exp
+\end{alignat*}
+
 
 \subsection{Statements}
+Statements in \explanguage consists of assignments to values. Variables are implicitly declared, so assigning to a variable that does not already exist, will create the variable. 
+
+\begin{alignat*}{3}
+	smt & \in \textsc{Statement} && := \quad id  = exp 
+\end{alignat*} 
+The value of an assignment statement is the value of the expression on the right hand side. This expression must evaluate to either an integer value or a boolean value. \explanguage supports three different conditional statements;  \textsl{if}-statements, \textsl{while}-statements and \textsl{while}-statements. 
+
+\begin{alignat*}{3}
+	stm & \in \textsc{Statement} && := \quad \textbf{if }  exp \textbf{ then } stm \textbf{ else } stm\\
+	& && \alt \textbf{while } exp \textbf{ do } stm\\
+	& && \alt \textbf{assert } exp
+\end{alignat*}
+
+The condition expression must evaluate to a boolean value. The value of an \textsl{if}-statement is the value of the statement that gets evaluated depending on the value of the condition. The value of a \textsl{while}-statement is $unit$. The value of an \textsl{assert}-statement is $unit$ if the condition evaluates to $True$, otherwise the execution ends with an error. Finally a statement can simply be an expression or a sequence of expressions. 
+
+\begin{alignat*}{3}
+	stm & \in \textsc{Statement} && := \quad exp \alt stm \ stm
+\end{alignat*}
 
 
+\subsection{Functions}
+\explanguage supports top-level functions that must be defined at the beginning of the program. A function definition consists of an identifier, followed by a parameter list with zero or more identifiers. The function body consists of one or more statements. A function call is an expression consisting of an identifier matching one of the defined functions followed by a argument list with zero or more expresssions. 
+
+\begin{alignat*}{3}
+	f & \in \textsc{Function} && := \quad id \ (id^{*}) \ \{stm\}\\
+	call & \in \textsc{Expression} && := \quad id \ (exp^{*})
+\end{alignat*}
+
+Since expressions only evaluates to a value, it follows that function calls does not have any side effects.
+
+\iffalse
 \subsubsection{variable declaration and assignment}
 Variables implicitly declared, so variable declaration and assignment are contained in the same expression:
 \begin{grammar}
@@ -80,6 +111,7 @@ We finally define the syntax of a \explanguage program, which is one or more fun
 	<P> ::= <F> <F>$^{*}$  <Id> (<E>$^{*}$) 
 \end{grammar}
 
+\fi
 \section{Concrete interpreter for \explanguage}
 To interpret the language, we have implemented an interpreter in the programming language \textsl{Scala}. The implementation is purely functional, so we avoid any state and side-effects. We translate the grammar we just described into the following object:
 

@@ -138,40 +138,75 @@ In this chapter we will cover the theory behind symbolic execution. We will star
 	\subsection{Deciding satisfiability of \emph{path-constraints}}
 	A key component of symbolic execution, is deciding if a \emph{path-constraint} is satisfiable, in which case the corresponding execution path is eligible for exploration. Consider the following \emph{path-constraint} from the motivating example:
 	
-	\begin{equation}	
+	\begin{equation*}	
 		true \land (\alpha \cdot 2 \geq 16) \land \neg (2\cdot \alpha - 10 < \beta).
-	\end{equation}
+	\end{equation*}
 	
 	To decide if this is satisfiable or not, we must determine if there exist an assignment of integer values to $\alpha$ and $\beta$ such that the formula evaluates to \emph{true}. We notice that the formula is a conjunction of linear inequalities. We can assign these to variables $q_1$ and $q_2$ and get
-	\begin{align}
+	\begin{align*}
 		q_1 & = (\alpha \cdot 2 \geq 16) \\
 		q_2 & = (2\cdot \alpha - 10 < \beta)
-	\end{align}
+	\end{align*}
 	The formula would then be $true\land q_1 \land \neg q_2$,
 	where $q_1$ and $q_2$ can have values \emph{true} or \emph{false} depending on whether or not the linear inequality holds for some integer values of $\alpha$ and $\beta$. The question then becomes twofold: Does there exist an assignment of \emph{true} and \emph{false} to $q_1$ and $q_2$ such that the formula evaluates to true? And if so, does this assignment lead to a system of linear inequalities that is satisfiable?
 	In this example, we can assign \emph{true} to $q_1$ and \emph{false} to $q_2$, which gives the following system of linear inequalities:
-	\begin{align}
+	\begin{align*}
 		& \alpha \cdot 2 \geq 16 \\
 		2  \cdot & \alpha - \beta \geq 10 
-	\end{align}
+	\end{align*}
 	
-	where we gathered the constant terms on the left hand side, and the symbols the right hand side. From the first equation we get that $\alpha \geq 8$so we select $\alpha = 8$. From the second equation we then get that $\beta \leq 6$, so we select $\beta = 6$ and this gives us a satisfying assignment for the path constraint.	
+	where we gathered the constant terms on the left hand side, and the symbols the right hand side. From the first equation we get that $\alpha \geq 8$so we select $\alpha = 8$. From the second equation we then get that $\beta \leq 6$, so we select $\beta = 6$ and this gives us a satisfying assignment for the path constraint. Since deciding satsifiability of a \pc is such an critical part of symbolic execution, it is important to know if we can always correctly \emph{yes} or \emph{no}. In the next section we will study this question more closely, and we will see that it depends on what sort of constraints we place on the input values. 
 	\subsubsection{The SMT problem}
 
-	The example we just gave, is an instance of the \emph{Satisfiability Modulo Theories(SMT)} problem. To understand SMT, we first consider the \emph{Boolean Satisfiability(SAT)} problem. In this problem we a given a logical formula over boolean variables $q_1, q_2, \ldots, q_n$. We want to decide if there exists an assignment of truth values to each variable such that the formula evaluates to true. for example, $(q_1 \land \neg q_2)$ is a \emph{yes}-instance of this problem, since $q_1 = true$ and $q_2 = false$ causes the formula to evaluate to \emph{true}. On the other hand $q_1 \land q_2 \land \neg q_2$ is a \emph{no}-instance since the formula is clearly false no matter which values we assign. This problem is \emph{decidable}, meaning that we can always answer \emph{yes} or \emph{no} given a formula. However it is also NP-complete, which means that the best known method for solving this problem takes worst-case exponential time. SMT is then an extention of this problem. We now let the boolean variables $q_1, q_2, \ldots, q_n$ represent expressions from some theory such as the \emph{theory of integer linear arithmetic(LIA)}. In LIA, an expression e is defined as 
+	The example we just gave, is an instance of the \emph{Satisfiability Modulo Theories}(SMT) problem. To understand SMT, we first consider the \emph{Boolean Satisfiability}(SAT) problem. In this problem we are given a logical formula over boolean variables $q_1, q_2, \ldots, q_n$. We want to decide if there exists an assignment of truth values to each variable such that the formula evaluates to true. for example, $(q_1 \land \neg q_2)$ is a \emph{yes}-instance of this problem, since $q_1 = true$ and $q_2 = false$ causes the formula to evaluate to \emph{true}. On the other hand $q_1 \land q_2 \land \neg q_2$ is a \emph{no}-instance since the formula is clearly false no matter which values we assign. This problem is \emph{decidable}, meaning that we can always correctly answer \emph{yes} or \emph{no} to whether or not a given formula is satisfiable. However it is also NP-complete, which means that the best known method for solving this problem takes worst-case exponential time. SMT is then an extention of this problem. We now let the boolean variables $q_1, q_2, \ldots, q_n$ represent expressions from some theory such as the \emph{theory of integer linear arithmetic(LIA)} \cite{DeMoura2011}. In LIA, an expression e is defined as 
 		\begin{alignat*}{3}
-			e & \in Expression && := \quad p \bowtie p\\
-			\bowtie & \in Comparison && := \quad \leq \alt \geq \alt =\\
-			p & \in Polynomial && := \quad a \alt a\cdot x \alt p \circ p\\
-			\circ & \in Operator && := \quad + \alt - \\
-			a & \in Coefficient && := \quad \mathbb{Z}\\
-			x & \in Variable && := \quad \mathbb{Z}			
+			e & \in \textsc{Expression} && := \quad p \bowtie p\\
+			\bowtie & \in \textsc{Constraint} && := \quad \leq \alt \geq \alt =\\
+			p & \in \textsc{Polynomial} && := \quad a \alt a\cdot x \alt p \circ p\\
+			\circ & \in \textsc{Operator} && := \quad + \alt - \\
+			a & \in \textsc{Coefficient} && := \quad \mathbb{Z}\\
+			x & \in \textsc{Variable} && := \quad \mathbb{Z}			
 		\end{alignat*} 
-	We now want to decide if the formula is satisfiable with respect to the theory.
+	We now want to decide if the formula is satisfiable with respect to the theory. To be satisfiable w.r.t LIA, we require that there exist an assignment of truth values to the boolean variables such that the formula evaluates to \emph{true}, and that for such an assignment, there exists an assignment of integer values to the variables in the underlying expressions such that all the constraints are satisfied. In the previous section we showed that 
+	
+	\begin{equation*}	
+	true \land (\alpha \cdot 2 \geq 16) \land \neg (2\cdot \alpha - 10 < \beta).
+	\end{equation*}
+
+	is a \emph{yes}-instance of the SMT problem, since we could let $q_1$ represent $(\alpha \cdot 2 \geq 16)$ and $q_2$ represent $(2\cdot \alpha - 10 < \beta)$. We could then assign $q_1 = true$ and $q_2 = false$. For this assignment of truth variables, we could choose $\alpha = 8$ and $\beta = 6$ in which case all the constraints hold. On the other hand 
+	
+	\begin{equation*}
+		(2\cdot \alpha < 4) \land (\alpha > 4)
+	\end{equation*}
+	
+	is clearly a \emph{no}-instance. If we let $q_1$ represent $(2\cdot \alpha < 4)$ and $q_2$ represent $(\alpha > 4)$, the formula becomes $q_1\land q_2$. The only assignment of truth variables that satisfy this is $q_1 = true$ and $q_2 = true$. But it is clear that there does not exist an integer value for $\alpha$ such that both the constraints hold. LIA is a \emph{decidable} theory, meaning that we can always correctly answer \emph{yes} or \emph{no} to an instance of the SMT problem, when it is with respect to LIA. Given an SMT formula, we can construct an Integer Linear Program with the expressions from the formula as constraints. This program will we feasible if and only if the SMT formula is satsifiable w.r.t LIA. We can check the feasibility of the Integer linear Program by using the \emph{branch-and-bound} algorithm. If the program is feasible, this will also give us a satisfying assignment.
+	
+	This means that as long as we only consider programs with linear expressions as conditions, we can always decide the satisfiability of a \pc.
+	
+	\subsubsection{Undecidable theories}
+	Let us consider the following extension of the definition of expressions in LIA:
+	\begin{alignat*}{3}
+		e & \in \textsc{Expression} && := \quad p \bowtie p\\
+		\bowtie & \in \textsc{Constraint} && := \quad \leq \alt \geq \alt =\\
+		p & \in \textsc{Polynomial} && := \quad a \alt a\cdot x \alt p \circ p\\
+		\circ & \in \textsc{Operator} && := \text{\hl{$\quad + \alt - \alt \cdot \quad$}} \\
+		a & \in \textsc{Coefficient} && := \quad \mathbb{Z}\\
+		x & \in \textsc{Variable} && := \quad \mathbb{Z}
+	\end{alignat*}
+	
+	This definition allows for expressions with nonlinear terms such as $ 5\cdot x - 10 \leq 3 \cdot y^3$. Such expressions belong to the \emph{Theory of Nonlinear Integer Arithmetic}(NLIA). This theory is \emph{undecidable}, meaning that there does not exist an algorithm that always halt with a correct answer to the question of whether or not there exists an assignment of integer values to the variables such that all constraints are satisfied. This means that if we try to do symbolic execution on a program that has conditional statements with such nonlinear expressions in the condition, we might get stuck trying to decide the satisfiability of a path constraint forever. To avoid this, we can include some other termination criteria, such as a time limit, at which point we output \emph{unknown} instead of \emph{yes} or \emph{no}. This leaves us with two options. We can continue the symbolic execution and assume that the \pc is in fact satisfiable. In this case, we might end up exploring execution paths that are not reachable for any concrete input values. The other option is to assume that the \pc is unsatisfiable. In this case we do not explore unreachable execution paths, but we can no longer be sure that we explore all reachable paths.
+	
+	
+	
+	
+	
+	
+	
+	
 	
 	\iffalse. In this problem we are given a logical formula over boolean variables $q_1, q_2, \ldots, q_n$, or their negation. The task is then to decide if there exist an assignment of boolean values $true$ and $false$ to this variables, so that the formula evaluates to \emph{true}. Furthermore, each of these boolean variables represent some formula belonging to a theory. Such a theory could be the \emph{theory of Linear Integer Arithmetic(\textbf{LIA})} which we will explain shortly. If there exist an assignment that satisfies the original formula, this assignment must also be valid w.r.t the given theory. Note that the first part of this problem is simply the \emph{boolean SAT problem}, which is known to be \emph{NP-complete}, so solving this part alone takes worst-case exponential time \cite{DeMoura2011}.
 	
-	\fi
+
 	\subsubsection{The theory of linear integer arithmetic}
 		The conditions that we have studied so far, have all had the following form:
 		
@@ -193,7 +228,7 @@ In this chapter we will cover the theory behind symbolic execution. We will star
 	
 	An important property of \textbf{LIA} is the fact that it is decidable. Given a formula over a number of atomic expressions, we can construct a \emph{Integer Linear Program} \textbf{(ILP)} with these expressions as constraints, and a constant objective function. This \textbf{ILP} is feasible if and only if the formula is satisfiable. We can check the feasibility of the \textbf{ILP} using the \emph{branch-and-bound} algorithm. If it is feasible, we will also get a satisfying assignment. 
 	
-	\subsection{Undecidable theories}
+	\subsubsection{Undecidable theories}
 	
 	We just saw that the conditions we have considered so far, are atomic expressions in the \emph{Theory of Linear Integer Arithmetic}, and that this theory is decidable. This means that we can always decide whether a given execution path is eligible for exploration.
 	 
@@ -210,4 +245,6 @@ In this chapter we will cover the theory behind symbolic execution. We will star
 	 \end{align*}
 	
 	This allows for non linear constraints such as $3 \cdot \alpha ^3 - 7\cdot \beta ^ 5 \leq 11$. Such expressions does not belong to \textbf{LIA}, so we are no longer guaranteed that we can decide satisfiability of the \emph{path-constraints}. In fact, they belong to the \emph{Theory of Nonlinear Integer Arithmetic} which has been shown to be an undecidable theory. %TODO cite paper that shows undecidability of NLIA
-	This presents us with a major limitation of symbolic execution, since we might get stuck trying do decide the satisfiability of a \emph{path-constraint} that is not decidable.	
+	This presents us with a major limitation of symbolic execution, since we might get stuck trying do decide the satisfiability of a \emph{path-constraint} that is not decidable.
+	
+	\fi	
