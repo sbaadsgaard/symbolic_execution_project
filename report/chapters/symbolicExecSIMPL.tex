@@ -2,70 +2,65 @@ In this chapter we will describe a symbolic interpreter for \explanguage. We sta
 
 \section{Extension of grammar}
 
-In order to symbolically interpret \explanguage, we must extend the grammar for the language, to include symbolic values. A symbolic value can either be a symbolic integer, a symbolic boolean or the unit value. 
+The original language have three types of values, namely integers, booleans and the unit value. Symbolic execution requires that we extend the language to include symbolic counterparts of these. We therefore introduce a symbolic value which can either be a symbolic integer, a symbolic boolean or the unit value.
 
-\begin{grammar}
-	<SV> ::= <SI> | <SB> | unit
-\end{grammar}
+\begin{alignat*}{3}
+	val & \in \textsc{SymbolicValue} && := \quad int_{sym} \alt
+	bool_{sym} \alt unit
+\end{alignat*}
 
-A symbolic integer can either be a concrete integer, a symbol, or an arithmetic expression over these two.
 
-\begin{grammar}
-	<I> ::= 0 | 1 | -1 | 2 | -2 | $\ldots$
-	
-	<Sym> ::= a | b | c | \ldots
-	
-	<SI> ::= <I>
-	\alt <Sym>	
-	\alt <SI> + <SI> | <SI> - <SI> | <SI> * <SI> | <SI> / <SI>  
-\end{grammar}
 
-A symbolic boolean can either be \textsl{True}, \textsl{False} or a symbolic boolean expression, which is a comparison of two symbolic integers. Finally, a symbolic boolean can be the negation of a symbolic boolean. This extension is needed to be able to represent the two different \emph{path-constraints} that might arise from a conditional statement.
+ A symbolic integer can either be a concrete integer, a symbol or an arithmetic expression over these two:
 
-\begin{grammar}
-	<B> ::= True | False 
-	
-	<SB> :: = <B>
-	\alt <SI> \textless <SI> | <SI> \textgreater <SI> | <SI> $\leq$ <SI> | <SI> $\geq$ <SI> | <SI> $==$ <SI>
-	\alt ! <SB>
-\end{grammar} 
 
-Note that the definition of symbolic values also contain the concrete values, so we change the grammar of expressions to include symbolic values instead of just concrete values.
 
-\begin{grammar}
-	<E> ::= <SV>
-\end{grammar}
+\begin{alignat*}{3}
+	int & \in \textsc{Integer} && := \quad 0 \alt 1 \alt -1 \alt \ldots\\
+	sym & \in \textsc{Symbol} && := \quad a \alt b \alt c \alt \ldots \\	
+	int_{sym} & \in \textsc{SymbolicInteger} && := \quad int \alt sym \alt int_{sym} + int_{sym} \\
+	& && \quad \alt int_{sym} - int_{sym} \alt int_{sym} * int_{sym}\\
+	& && \quad \alt int_{sym} / int_{sym}\\
+\end{alignat*}
+
+A symbolic boolean can either be $True$, $False$ or an symbolic boolean expression, which is a comparison of two symbolic integers. Finally a symbolic boolean can be the negation of a symbolic boolean. This extension is needed to be able to represent the two different \emph{path-constraints} that might arise from a conditional statement.
+
+\begin{alignat*}{3}
+	bool & \in \textsc{Boolean} && := \quad True \alt False\\
+	bool_{sym} & \in \textsc{SymbolicBoolean} && := \quad int_{sym} < int_{sym} \alt int_{sym} > int_{sym}\\
+	& && \quad \alt int_{sym} \leq int_{sym} \alt  int_{sym} \geq int_{sym}\\
+	& && \quad \alt  int_{sym} == int_{sym} \alt  ! \ int_{sym}
+\end{alignat*}
+
+
 
 \section{Path-constraints}
 To represent a \pc, we implement the following classes:
 
 \begin{lstlisting}[style=simple]
-case class PathConstraint(conds: List[SymbolicBool],
-	ps: PathStatus) {
-		def :+(b: SymbolicBool): PathConstraint = 
-		PathConstraint(this.conds :+ b, this.ps)
-	}
-	sealed trait PathResult
-	case class Certain() extends PathResult
-	case class Unknown() extends PathResult
+case class PathConstraint(conds: List[SymbolicBool], ps: PathStatus) {
+		def :+(b: SymbolicBool): PathConstraint = PathConstraint(this.conds :+ b, this.ps)
+}
+sealed trait PathResult
+case class Certain() extends PathResult
+case class Unknown() extends PathResult
 \end{lstlisting}
 
-The definition of \textsl{PathConstraint} consists of two elements. \textsl{conds} is a  list of symbolic booleans from the conditional statements met so far. The \textsl{PathStatus} tells us whether or not we can guarantee that the path constraint is in fact satisfiable. This is necessary because we allow for nonlinear constraints, which our \textbf{SMT} solver may fail to solve. In the case of a failure, we still explore the path but the status of the \pc will be \textsl{Unknown}. For \textsl{PathConstraint}, we also define a method \textsl{:+} which takes a symbolic boolean, and returns a new \pc with the boolean added to \textsl{conds}. 
+The definition of \textsl{PathConstraint} consists of two elements. \textsl{conds} is a  list of symbolic booleans from the conditional statements met so far. The \textsl{PathStatus} tells us whether or not we can guarantee that the path constraint is in fact satisfiable. This is necessary because we allow for nonlinear constraints, which our SMT solver may fail to solve. In the case of a failure, we still explore the path but the status of the \pc will be \textsl{Unknown}, meaning that we cannot guarantee that there exists concrete input values that follow this path.
 
 \section{Interpretation of expressions}
 To interpret an expression, we define the following function
 
 \begin{lstlisting}[style = simple]
- def interpExp(p: Prog,
-  e: Exp, 
-  env: HashMap[Id, SymbolicValue],
-  pc: PathConstraint, 
-  forks: Int): List[ExpRes]
+ def interpExp(p: Prog, e: Exp, env: HashMap[Id, SymbolicValue], 
+ 	pc: PathConstraint, forks: Int): List[ExpRes]
   
  case class ExpRes ExpRes(res: Result[SymbolicValue, String], 
  	pc: PathConstraint)
 \end{lstlisting}
-This definition is similar to the function from the concrete interpreter, except that the function takes two extra parameters \textsl{pc}, which is the current \pc and \textsl{forks} which is the current number of forks. The return type is now a list of pairs \textsl{(Result[SymbolicValue, String], PathConstraint)}, with a pair for each possible execution path. 
+
+This version of \textsl{interpExp} is an extension of the version from the concrete interpreter. It still depends current environment, which is now of type \textsl{Map[Id, SymbolicValue]} and the program itself. However, it now also depends on a \pc and integer \textsl{forks} which is the current number of times the execution has been forked. The return type has also changed to \textsl{List[ExpRes]} where \textsl{ExpRes} is pair consisting of a symbolic value, which is the value of the expression, and a \pc. This tells us that the symbolic interpretation of an expression does necessarily result in a single symbolic value. In fact it will result in in a list of symbolic values, one for each possible execution path. This also effects how we interpret the different types of expressions. Most of them consists of one or more sub-expressions, each of which may result in several different values, so we have to consider all possible combinations of results.  
+
 \subsection{Arithmetic and boolean expressions}
 Consider an arithmetic expression 
 \textsl{AExp(e1: Exp, e2: Exp, op: AOp)}. When we recursively interpret $e_1$ and $e_2$, we get two lists $L_{e_1}, L_{e_2}$ of possible results. We need to take the cartesian $L_{e_1} \times L_{e_2}$ of the lists, and for each pair of results, we have to evaluate the arithmetic expression. 
@@ -76,7 +71,7 @@ Boolean expressions are interpreted in a similar fashion.
 \subsection{Function calls}
 Consider a \textsl{Call}-expression \textsl{CallExp(id: Id, args: List[Exp])}.
 First, we must check that the function is defined and that the formal and actual argument list does not differ in length. If both of these checks out, we map \textsl{interpExp} on to \textsl{args}. This gives a list of lists $[L_{e_1}, L_{e_2}, \ldots, L_{e_n}]$, where the $i'th$ list contains the possible results of interpreting the $i'th$ expression in \textsl{args}.
-We take the cartesian product $L_{e_1} \times L_{e_2} \times \ldots \times L_{e_n}$, which gives us all possible argument lists. For each of these lists, we zip it with formal argument list. This gives a list of the following type \textsl{List[(ExpRes, Id)]}. We attempt to build a local environment by folding over this list, starting with the original environment that was passed with the call to \textsl{interpExp}. If we encounter an error, either from the interpretation of the expressions in \textsl{args} or from an expression evaluating to the unit value, the result of the function call with this argument list will be that error. Otherwise, for each pair of result and id, we make a new environment with the appropriate binding added. We then interpret the statement in the function body  with the local environment, and the result of the function call with this argument list, will be the value of the statement.
+We take the cartesian product $L_{e_1} \times L_{e_2} \times \ldots \times L_{e_n}$, which gives us all possible argument lists. For each of these lists, we zip it with formal argument list. This gives a list of the following type \textsl{List[(ExpRes, Id)]}. We attempt to build a local environment by folding over this list, starting with the original environment that was passed with the call to \textsl{interpExp}. If we encounter an error, either from the interpretation of the expressions in \textsl{args} or from an expression evaluating to the unit value, the result of the function call with this argument list will be that error. Otherwise, for each pair of result and id, we make a new environment with the appropriate binding added. We then interpret the statement in the function body  with the local environment, and the result of the function call with this argument list, will be the value of the statement. 
 
 \section{Interpreting statements}
 

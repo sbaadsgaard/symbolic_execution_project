@@ -23,7 +23,8 @@ Expressions consists of concrete values which can be integers$\langle I, \rangle
 	val & \in \textsc{ConcreteValue} && := \quad int \alt bool \alt unit\\
 	id & \in \textsc{Identifier} && := \quad a \alt b \alt c \alt \ldots \\
 	exp & \in \textsc{Expression} && := \quad val \alt id\\ & && \alt exp + exp \alt exp - exp \alt exp * exp \alt exp / exp\\
-	& && \alt exp < exp \alt exp > exp \alt exp \leq exp \alt exp \geq exp \alt exp == exp
+	& && \alt exp < exp \alt exp > exp \alt exp \leq exp\\
+	& &&  \alt exp \geq exp \alt exp == exp
 \end{alignat*}
 
 
@@ -48,7 +49,7 @@ The condition expression must evaluate to a boolean value. The value of an \text
 \end{alignat*}
 
 
-\subsection{Functions}
+\subsection{Functions and programs}
 \explanguage supports top-level functions that must be defined at the beginning of the program. A function definition consists of an identifier, followed by a parameter list with zero or more identifiers. The function body consists of one or more statements. A function call is an expression consisting of an identifier matching one of the defined functions followed by a argument list with zero or more expresssions. 
 
 \begin{alignat*}{3}
@@ -58,63 +59,16 @@ The condition expression must evaluate to a boolean value. The value of an \text
 
 Since expressions only evaluates to a value, it follows that function calls does not have any side effects.
 
-\iffalse
-\subsubsection{variable declaration and assignment}
-Variables implicitly declared, so variable declaration and assignment are contained in the same expression:
-\begin{grammar}
-	<S> ::= <Id> = <Exp>
-\end{grammar} 
-The value of an \textsl{assignment}-statement is the value of the expression on the right-hand side.  
-\subsubsection{Conditional statements}
-\explanguage supports three different conditional statements, namely \textsl{if-then-else} statements, \textsl{while} statements and \textsl{assert} statements:
+Finally we define the syntax of a \explanguage program to be one or more function declarations, followed by a call to one of these functions. 
 
-\begin{grammar}
-	<S> ::= if <E> then <S> else <S>
-	\alt while <E> do <S>
-	\alt assert <E>
-\end{grammar}
-Where the condition must be an expression that evaluates to a boolean value. 
-The value of an \textsl{if-then-else} statement is the value of the statement that ends up being evaluated, depending on the condition. In a \textsl{while} statement, we are not guaranteed that the second statement is evaluated, so we introduce a special \textsl{unit} value which will be the value of any \textsl{while} statement. An assert statement will have the \textsl{unit} value if the condition evaluates to \textsl{true}. If the condition evaluates to \textsl{false}, the execution ends with an error.
+\begin{alignat*}{3}
+	prog & \in \textsc{Program} && := \quad f \ f^{*} \ call
+\end{alignat*}
 
-\bigskip
-
-Finally a statement may simply be an expression, or one statement followed by another:
-
-\begin{grammar}
-	<S> ::= <E>
-	\alt <S> <S>
-\end{grammar}
- The value of an \textsl{expression} statement is simply the value of the expression, and the value of a \textsl{sequence} statement is the value of evaluating the second statement, using the environment from the result of evaluating the first statement. 
- 
-
-\subsubsection{Functions}
-\explanguage supports top-level functions that must be defined at the beginning of the program. A function declaration$\langle F \rangle$ consists of an identifier followed by a parameter list with zero or more identifiers and finally a function body which is one or more statements.
-
-\begin{grammar}
-	<F> ::= <Id> (<Id>$^{*}$) \{ <E> \}
-\end{grammar}
-
-A function call then consists of an identifier, referencing a function declaration, followed by a list of expressions which is the function arguments:
-
-\begin{grammar}
-	<E> ::= <Id> (<E>$^{*}$) 
-\end{grammar}
-
-The length of the argument list and the parameter list in the declaration must be equal. Furthermore the expressions in the argument list must evaluate to either integers or  boolean values.
-The value of a function call is the value of the final statement evaluated in the function body. Since expressions only return values, functions does not have any side effects.
-
-
-\subsubsection{Programs}
-We finally define the syntax of a \explanguage program, which is one or more function declarations, followed by a function call. 
-
-\begin{grammar}
-	<P> ::= <F> <F>$^{*}$  <Id> (<E>$^{*}$) 
-\end{grammar}
-
-\fi
 \section{Concrete interpreter for \explanguage}
-To interpret the language, we have implemented an interpreter in the programming language \textsl{Scala}. The implementation is purely functional, so we avoid any state and side-effects. We translate the grammar we just described into the following object:
 
+
+\iffalse
 \begin{figure}[!h]
 	\begin{lstlisting}[style=simple]
 		object ConcreteGrammar {
@@ -134,34 +88,29 @@ To interpret the language, we have implemented an interpreter in the programming
 	\end{lstlisting}
 	\caption{High level overview of grammar implementation in \textsl{Scala}.}
 \end{figure}
+\fi
 
-The interpreter consists of the following functions:
+To interpret \explanguage we define the three following functions
 
 \begin{figure}[!h]
 	\begin{lstlisting}[style=simple]
 	class ConcreteInterpreter {
 		def interpProg(p: Prog): Result[ConcreteValue, String]
 			
-		def interpExp(p: Prog,
-			e: Exp, 
-			env: HashMap[Id, ConcreteValue])
-			:Result[ConcreteValue, String]
+		def interpExp(p: Prog, e: Exp, env: HashMap[Id, ConcreteValue]): Result[ConcreteValue, String]
 						  
-		def interpStm(p: Prog,
-			s: Stm,
-			env: HashMap[Id, ConcreteValue]):
-			Result[(ConcreteValue, HashMap[Id, ConcreteValue]), String]
+		def interpStm(p: Prog, s: Stm, env: HashMap[Id, ConcreteValue]): Result[(ConcreteValue, HashMap[Id, ConcreteValue]), String]
 	}
 	\end{lstlisting}
 	\caption{High level overview of the interpreter implementation in \textsl{Scala}.}
 \end{figure}
-\newpage
-We use an immutable map of type \textsl{HashMap[Id, ConcreteValue]} to represent our program environment.
 
-The interpretation is started by a call to \textsl{interpProg} with a program \textsl{p}, which then call calls \textsl{interpExp(p, p.fCall, env)} where \textsl{env} is a fresh environment. This means that the function referenced by \textsl{p.fCall} acts as a main-function. 
+ \noindent where \textsl{interpProg} acts as the entry function. It takes a program \textsl{p} of type \textsl{Prog(funcs: Map[Id, FDecl], fCall: CallExp)} and calls \textsl{interpExp} with \textsl{p}, \textsl{fCall} and a fresh environment. We use an immutable map of type \mbox{\textsl{Map[Id, ConcreteValue]}} to represent our environment. From the signature of \textsl{interpExp} we see that the interpretation of an expression depends on the current environment and the program which holds the top level functions, and that it results in a concrete value. The final function is \textsl{interpStm} whose signature tells us that the interpretation of a statement also depends on the current environment and the program, and that results in both a concrete value and a potentially updated environment. 
 
 \subsection{Error handling}
-We wish to keep our implementation purely functional, so we need to avoid throwing exceptions whenever we encounter an error. Instead we define a trait \textsl{Result[+V, +E]}, that can either be \textsl{Ok(v: V)},  or \textsl{Error(e: E)}, for some types \textsl{V} and \textsl{E}.
+We wish to keep our implementation purely functional, so we need to avoid throwing exceptions whenever we encounter an error. 
+
+ Instead we define a trait \textsl{Result[+V, +E]}, that can either be \textsl{Ok(v: V)},  or \textsl{Error(e: E)}, for some types \textsl{V} and \textsl{E}.
 
 \begin{figure}[!h]
 	\begin{lstlisting}[style=simple]
