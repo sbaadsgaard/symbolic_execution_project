@@ -1,10 +1,11 @@
 package util
 
 import grammars.ConcreteGrammar.AOp.{Add, Mul}
-import grammars.ConcreteGrammar.BOp.{Eq, Gt}
+import grammars.ConcreteGrammar.BOp.Leq
 import grammars.ConcreteGrammar.ConcreteValue.IntValue
-import grammars.ConcreteGrammar.Exp._
-import grammars.ConcreteGrammar._
+import grammars.ConcreteGrammar.Exp.{AExp, BExp, CallExp, Lit, Var}
+import grammars.ConcreteGrammar.Stm.{AssignStm, ExpStm, SeqStm, WhileStm}
+import grammars.ConcreteGrammar.{FDecl, Id, Prog}
 import interpreters.ConcreteInterpreter
 
 import scala.collection.immutable.HashMap
@@ -107,4 +108,37 @@ object Driver extends App {
 
   print(concreteInterpreter.interpExp(test6, test6.e, HashMap[Id, ConcreteValue]()))
   */
+
+  val
+  t8 = Prog(
+    HashMap(
+      Id("teststuff") -> FDecl(Id("teststuff"), List(Id("a"), Id("b")),
+        SeqStm(
+          AssignStm(Var(Id("r")), Lit(IntValue(1))),
+          SeqStm(
+            AssignStm(Var(Id("i")), Lit(IntValue(1))),
+            SeqStm(
+              WhileStm(
+                BExp(Var(Id("i")), Var(Id("b")), Leq()),
+                SeqStm(
+                  AssignStm(
+                    Var(Id("r")),
+                    AExp(Var(Id("r")), Var(Id("a")), Mul())
+                  ),
+                  AssignStm(
+                    Var(Id("i")),
+                    AExp(Var(Id("i")), Lit(IntValue(1)), Add())
+                  )
+                )
+              ),
+              ExpStm(Var(Id("r")))
+            )
+          )
+        )
+      )
+    ),
+    CallExp(Id("teststuff"), List(Lit(IntValue(2)), Lit(IntValue(4))))
+  )
+
+  print(concreteInterpreter.interpProg(t8))
 }

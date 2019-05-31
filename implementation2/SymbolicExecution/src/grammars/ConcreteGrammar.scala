@@ -2,8 +2,6 @@ package grammars
 
 import grammars.ConcreteGrammar.Exp.{CallExp, Var}
 
-import scala.collection.immutable.HashMap
-
 object ConcreteGrammar {
 
 
@@ -92,6 +90,6 @@ object ConcreteGrammar {
   case class FDecl(name: Id, params: List[Id], stm: Stm)
 
 
-  case class Prog(funcs: HashMap[Id, FDecl], fCall: CallExp)
+  case class Prog(funcs: Map[Id, FDecl], fCall: CallExp)
 
 }

@@ -8,10 +8,13 @@ import grammars.ConcreteGrammar.Stm.{AssertStm, AssignStm, ExpStm, IfStm, SeqStm
 import grammars.ConcreteGrammar._
 import result.{Error, Ok, Result}
 
-import scala.collection.immutable.HashMap
+import scala.collection.immutable.{HashMap, Map}
 
 class ConcreteInterpreter {
-  def interpExp(p: Prog, e: Exp, env: HashMap[Id, ConcreteValue]): Result[ConcreteValue, String] =
+
+  def interpProg(p: Prog): Result[ConcreteValue, String] = interpExp(p, p.fCall, HashMap[Id, ConcreteValue]())
+
+  def interpExp(p: Prog, e: Exp, env: Map[Id, ConcreteValue]): Result[ConcreteValue, String] =
     e match {
       case Lit(v) => Ok(v)
       case Var(id) => env.get(id) match {
@@ -56,13 +59,13 @@ class ConcreteInterpreter {
         case Some(f) if args.length != f.params.length => Error("formal and actual parameter list differ in length")
         case Some(f) =>
           Result.traverse(args)(interpExp(p, _, env)).flatMap(_.zip(f.params)
-            .foldLeft[Result[HashMap[Id, ConcreteValue], String]](Ok(env))((next, t) => next.flatMap(buildEnv(t._1, t._2, _))))
+            .foldLeft[Result[Map[Id, ConcreteValue], String]](Ok(env))((next, t) => next.flatMap(buildEnv(t._1, t._2, _))))
             .flatMap(interpStm(p, f.stm, _).flatMap(r => Ok(r._1)))
       }
     }
 
 
-  def interpStm(p: Prog, stm: Stm, env: HashMap[Id, ConcreteValue]): Result[(ConcreteValue, HashMap[Id, ConcreteValue]), String] = {
+  def interpStm(p: Prog, stm: Stm, env: Map[Id, ConcreteValue]): Result[(ConcreteValue, Map[Id, ConcreteValue]), String] = {
     stm match {
       case AssignStm(v, e) => interpExp(p, e, env).flatMap({
         case UnitValue() => Error(s"Assignment of unit value to variable ${v.id.s}")
@@ -97,7 +100,7 @@ class ConcreteInterpreter {
   }
 
 
-  def buildEnv(v: ConcreteValue, id: Id, env: HashMap[Id, ConcreteValue]): Result[HashMap[Id, ConcreteValue], String] =
+  def buildEnv(v: ConcreteValue, id: Id, env: Map[Id, ConcreteValue]): Result[Map[Id, ConcreteValue], String] =
     v match {
       case UnitValue() => Error("unit value as argument to function call")
       case value => Ok(env + (id -> value))
