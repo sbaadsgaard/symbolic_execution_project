@@ -9,7 +9,7 @@
 		>=stealth,
 		node distance=1cm,
 		noname/.style={%
-			minimum width=5em,
+			minimum width=4em,
 			minimum height=2em,
 			draw,
 			align=left
@@ -44,8 +44,8 @@
 		>=stealth,
 		node distance=1cm,
 		noname/.style={%
-			minimum width=5em,
-			minimum height=3em,
+			minimum width=4em,
+			minimum height=2em,
 			draw
 		}
 		]
@@ -72,8 +72,8 @@
 		>=stealth,
 		node distance=1cm,
 		noname/.style={%
-			minimum width=5em,
-			minimum height=3em,
+			minimum width=4em,
+			minimum height=2em,
 			draw
 		}
 		]
@@ -107,8 +107,8 @@
 			>=stealth,
 			node distance=1cm,
 			noname/.style={%
-				minimum width=5em,
-				minimum height=3em,
+				minimum width=4em,
+				minimum height=2em,
 				draw
 			}
 			]
@@ -132,29 +132,49 @@
 		\caption{Abstract overview of the symbolic execution of an \textsl{if}-statement, which potentially leads to two new execution paths, each with a new \pc.}
 	\end{figure}
 }
-\iffalse
 \newcommand{\exectree}{
 	\begin{figure}[!h]
 		\begin{center}
 			\begin{tikzpicture}[%
+			align = center,
 			font=\scriptsize,
 			->,
 			shorten >=2pt,
 			>=stealth,
-			node distance=1cm,
+			node distance=2cm and -0.7cm,
 			noname/.style={%
-				minimum width=5em,
-				minimum height=3em,
+				minimum width=4em,
+				minimum height=2em,
 				draw
 			}
 			]
-			\node[noname] (1) {$revenue := \alpha \cdot 2$};
-			\node[noname] (2) [below= of 1] {\textbf{if} $\alpha \geq 16$};
-			\node[noname] ()
+			\node[noname] (1)  {\begin{tabular}{c}
+				\textbf{If} $(2\cdot \alpha \geq 16)$\\
+				PC: $[true]$
+				\end{tabular}};
+			\node[noname] (2) [below left= of 1] {\begin{tabular}{c}
+				\textbf{Assert} $(\alpha - 10 \geq \beta)$\\
+				PC: $[true, \ (2\cdot\alpha \geq 16)]$
+				\end{tabular}};
+			\node[noname] (3) [below right= of 1] {\begin{tabular}{c}
+					\textbf{Return} $\alpha \cdot 2$\\
+					PC: $[true, \ \neg(2 \cdot\alpha \geq 16)]$
+				\end{tabular}};
+			\node[noname] (4) [below left = of 2] {\begin{tabular}{c}
+				\textbf{Return} $2\cdot \alpha - 10$\\
+				PC: $[true, \  (\alpha \geq 16), \ (\alpha  10 \geq \beta)]$
+				\end{tabular}};
+			\node[noname] (5) [below right = of 2] {\begin{tabular}{c}
+				Assertion Error\\
+				PC: $[true, \ (2\cdot \alpha \geq 16), \ \neg(2\cdot \alpha - 10 \geq \beta)]$
+				\end{tabular}};
+			
+			\path (1) edge node[below right] {true} (2)
+			(1) edge node[below left] {false} (3)
+			(2) edge node [below right] {true} (4)
+			(2) edge node [below left] {false} (5);
 			\end{tikzpicture}
 		\end{center}
 	\end{figure}
 
 }
-
-\fi

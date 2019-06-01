@@ -1,11 +1,11 @@
 
-In chapter 5 and 6,
+In chapter 5 and 6, we describe an implementation of a concrete and symbolic interpreter for a small toy language, written in the programming language \textsl{Scala}. We do this to: 
+\begin{itemize}
+	\item Demonstrate the principles that we discussed in chapter 3, by describing an actual implementation of symbolic execution for a small toy language.
+	\item Be able to clearly see the differences between a symbolic and a concrete execution by comparing the two interpreters, and looking at the necessary changes to the source language. 
+\end{itemize} 
 
-\iffalse
- we want to demonstrate the differences between concrete and symbolic execution. To do so we have designed a small programming language called \explanguage, and implemented a concrete and a symbolic interpreter for the language. We have decided to make a purely functional implementation of both, 
- \fi
-
-In this chapter we will introduce \explanguage which is a small programming language which consists of top-level functions, expressions and statements. We start by describing the syntax of the language, and then we describe a concrete interpreter for the language.
+In this chapter we introduce the toy language, called \explanguage. We start by giving a formal definition through a grammar, and then we describe a purely functional implementation of a concrete interpreter for the language. We have chosen to implement both interpreters in a purely functional way to avoid dealing with states and side effects. This will allow us to easily showcase the important differences by simply looking at the relevant function signatures. In order to do this, we also describe a technique to avoid throwing exception whenever we encounter errors, such as type errors, assertion errors or referencing undefined variables or functions. Doing this gives a much more elegant implementation, and it greatly simplifies the implementation of the symbolic interpreter as we do not wish to interrupt the execution whenever we encounter such an error.
 
 \section{Syntax of \explanguage}
 
@@ -42,7 +42,7 @@ The value of an assignment statement is the value of the expression on the right
 	& && \alt \textbf{assert } exp
 \end{alignat*}
 
-The condition expression must evaluate to a boolean value. The value of an \textsl{if}-statement is the value of the statement that gets evaluated depending on the value of the condition. The value of a \textsl{while}-statement is $unit$. The value of an \textsl{assert}-statement is $unit$ if the condition evaluates to $True$, otherwise the execution ends with an error. Finally a statement can simply be an expression or a sequence of expressions. 
+The condition expression must evaluate to a boolean value. The value of an \textsl{if}-statement is the value of the statement that gets evaluated depending on the value of the condition. The value of a \textsl{while}-statement is $unit$. The value of an \textsl{assert}-statement is $unit$ if the condition evaluates to $True$, otherwise it is an assertion error. Finally a statement can simply be an expression or a sequence of statements. 
 
 \begin{alignat*}{3}
 	stm & \in \textsc{Statement} && := \quad exp \alt stm \ stm
@@ -50,7 +50,7 @@ The condition expression must evaluate to a boolean value. The value of an \text
 
 
 \subsection{Functions and programs}
-\explanguage supports top-level functions that must be defined at the beginning of the program. A function definition consists of an identifier, followed by a parameter list with zero or more identifiers. The function body consists of one or more statements. A function call is an expression consisting of an identifier matching one of the defined functions followed by a argument list with zero or more expresssions. 
+\explanguage supports top-level functions that must be defined at the beginning of the program. A function definition consists of an identifier, followed by a parameter list with zero or more identifiers. The function body consists of one or more statements. A function call is an expression consisting of an identifier matching one of the defined functions followed by a argument list with zero or more expresssions. The value of a function call is the value of the final statement in the function body. 
 
 \begin{alignat*}{3}
 	f & \in \textsc{Function} && := \quad id \ (id^{*}) \ \{stm\}\\
@@ -107,10 +107,9 @@ To interpret \explanguage we define the three following functions
 
  \noindent where \textsl{interpProg} acts as the entry function. It takes a program \textsl{p} of type \textsl{Prog(funcs: Map[Id, FDecl], fCall: CallExp)} and calls \textsl{interpExp} with \textsl{p}, \textsl{fCall} and a fresh environment. We use an immutable map of type \mbox{\textsl{Map[Id, ConcreteValue]}} to represent our environment. From the signature of \textsl{interpExp} we see that the interpretation of an expression depends on the current environment and the program which holds the top level functions, and that it results in a concrete value. The final function is \textsl{interpStm} whose signature tells us that the interpretation of a statement also depends on the current environment and the program, and that results in both a concrete value and a potentially updated environment. 
 
-\subsection{Error handling}
-We wish to keep our implementation purely functional, so we need to avoid throwing exceptions whenever we encounter an error. 
-
- Instead we define a trait \textsl{Result[+V, +E]}, that can either be \textsl{Ok(v: V)},  or \textsl{Error(e: E)}, for some types \textsl{V} and \textsl{E}.
+\subsection{Error handling without side effects}
+ As previously mentioned we wish to avoid side effects in our implementation. We must therefore avoid throwing exceptions whenever we encounter errors.
+ Instead we define a trait \textsl{Result[+V, +E]}, that can either be \textsl{Ok(v: V)},  or \textsl{Error(e: E)}, for some types \textsl{V} and \textsl{E} \cite{Chiusano:2014:FPS:2688794}.
 
 \begin{figure}[!h]
 	\begin{lstlisting}[style=simple]

@@ -1,5 +1,4 @@
-In this chapter we will describe a symbolic interpreter for \explanguage. We start by extending the grammar to include symbolic values. Next, we describe the implementation of \emph{path-constraints} and the functions for interpreting expressions and statements.
-
+In this chapter we will describe a symbolic interpreter for \explanguage. First, we describe how we must extend the grammar, to be able to do symbolic execution. Next we describe the implementation of \textsl{interpExp} and \textsl{interpStm}, and how these relate to their concrete counterparts. 
 \section{Extension of grammar}
 
 The original language have three types of values, namely integers, booleans and the unit value. Symbolic execution requires that we extend the language to include symbolic counterparts of these. We therefore introduce a symbolic value which can either be a symbolic integer, a symbolic boolean or the unit value.
@@ -59,13 +58,13 @@ To interpret an expression, we define the following function
  	pc: PathConstraint)
 \end{lstlisting}
 
-This version of \textsl{interpExp} is an extension of the version from the concrete interpreter. It still depends current environment, which is now of type \textsl{Map[Id, SymbolicValue]} and the program itself. However, it now also depends on a \pc and integer \textsl{forks} which is the current number of times the execution has been forked. The return type has also changed to \textsl{List[ExpRes]} where \textsl{ExpRes} is pair consisting of a symbolic value, which is the value of the expression, and a \pc. This tells us that the symbolic interpretation of an expression does necessarily result in a single symbolic value. In fact it will result in in a list of symbolic values, one for each possible execution path. This also effects how we interpret the different types of expressions. Most of them consists of one or more sub-expressions, each of which may result in several different values, so we have to consider all possible combinations of results.  
+This version of \textsl{interpExp} is an extension of the version from the concrete interpreter. It still depends current environment, which is now of type \mbox{\textsl{Map[Id, SymbolicValue]}}, and the program itself. However, it now also depends on a \pc and integer \textsl{forks} which is the current number of times the execution has been forked. The return type has also changed to \textsl{List[ExpRes]} where \textsl{ExpRes} is pair consisting of a symbolic value, which is the value of the expression, and a \pc. This tells us that the symbolic interpretation of an expression does not always result in a single symbolic value. In fact it will result in in a list of symbolic values, one for each possible execution path. This also effects how we interpret the different types of expressions. Most of them consists of one or more sub-expressions, each of which may result in several different values, so we have to consider all possible combinations of results. Next we will see how we deal with this in the interpretation of arithmetic and boolean expressions and function calls. 
 
 \subsection{Arithmetic and boolean expressions}
 Consider an arithmetic expression 
 \textsl{AExp(e1: Exp, e2: Exp, op: AOp)}. When we recursively interpret $e_1$ and $e_2$, we get two lists $L_{e_1}, L_{e_2}$ of possible results. We need to take the cartesian $L_{e_1} \times L_{e_2}$ of the lists, and for each pair of results, we have to evaluate the arithmetic expression. 
 
-To do this we use a \textsl{for-comprehension} which given two lists, iterate over each ordered pair of elements from the two lists.  For each pair, we \textsl{flatMap} over the two results, and if no errors are encountered, we check that both expressions evaluates to integers and compute the result.
+To do this we use a \textsl{for-comprehension} which given two lists, iterate over each ordered pair of elements from the two lists.  For each pair, we \textsl{flatMap} over the two results, and if no errors are encountered, we check that both expressions evaluates to symbolic integers and compute the result. If both sub expression evaluate to concrete, we compute the result as we would do in a concrete interpretation. 
 Boolean expressions are interpreted in a similar fashion.
 
 \subsection{Function calls}
@@ -78,21 +77,23 @@ We take the cartesian product $L_{e_1} \times L_{e_2} \times \ldots \times L_{e_
 To interpret statements, we define the following function:
 
 \begin{lstlisting}[style=simple]
-interpStm(p: Prog, 
-		  stm: Stm, 
-		  env: HashMap[Id, SymbolicValue], 
-		  pc: PathConstraint,
-		  forks: Int): List[StmRes]
+def interpStm(p: Prog, stm: Stm, env: Map[Id,SymbolicValue], 
+	pc: PathConstraint, forks: Int): List[StmRes]
 			  
 case class StmRes(res: Result[SymbolicValue, String], 
-				  env: HashMap[Id, SymbolicValue], 
-				  pc: PathConstraint)
+	env: Map[Id, SymbolicValue], pc: PathConstraint)
 \end{lstlisting}
 
-The signature is similar to \textsl{interpExp}, except that the return type now also includes a possibly updated environment. 
+This function is a also an extension of the concrete version, and it now also depends on a \pc and the number of times we forked the execution. The return type has also changed in a similar fashion, so we new return a list of results, one for each possible execution path. Next we describe the symbolic interpretation of conditional statements which is where the key challenges in symbolic execution presents itself. 
+
+
+\iffalse
 
 \subsection{Assignment statements}
-Given an \textsl{Assignment}-statement \textsl{AssignStm(v: Var, e: Exp)}, we interpret the expression $e$, and get a list of results for each possible execution path. For each of these results, we return the value of the expression and an updated environment. If the expression resulted in an error, or a unit value, we instead return error and the original environment. 
+Given an \textsl{Assignment}-statement \textsl{AssignStm(v: Var, e: Exp)}, we interpret the expression $e$, and get a list of results for each possible execution path. For each of these results, we return the value of the expression and an updated environment. If the expression resulted in an error, or a unit 
+value, we instead return error and the original environment. 
+
+\fi
 
 \subsection{Conditional statements}
 
@@ -103,7 +104,7 @@ We define the following classes to represent each type of conditional statement:
 	case class WhileStm(cond: Exp, doStm: Stm)
 	case class AssertStm(cond: Exp)
 \end{lstlisting}
-For each possible result of interpreting the condition expression we do the following: If it is either \textsl{True()} or \textsl{False()}, we follow the appropriate execution path, with the original values of \textsl{pc} and \textsl{forks}. 
+For each possible result of interpreting the condition expression we do the following: If it is either \textsl{True()} or \textsl{False()}, the expression must have been from symbols, so we can continue as we would have done during a concrete interpretation, with the same \pc and value of \textsl{forks}.
 
 \noindent If the result is a symbolic boolean expression $b$, we have two potential paths to follow. We must check the satisfiability of \textsl{pc :+ b} and \textsl{pc :+ Not(b)}. We do this by calling \textsl{(checkSat(pc, b)} and \textsl{checkSat(pc, Not(b))}. If \textsl{checkSat} reports \textsl{SATISFIABLE}, the given path is eligible for exploration. If it reports \textsl{UNSATISFIABLE}, we can safely ignore the path. If it reports \textsl{UNKNOWN}, we still explore the path, but the new \pc will have its status set to \textsl{UNKNOWN()}.
  If both calls to \textsl{checksat} return either \textsl{SATISFIABLE} or \textsl{UNKNOWN}, we explore both paths, and return a list containing the results of the first path, followed by the results of the second path.
@@ -120,6 +121,7 @@ which takes a \pc  and a symbolic boolean $b$, and checks the satisfiability of 
 
 The interpretation of an \textsl{If}-statement and a \textsl{While}-statement starts with checking whether $forks > maxForks$, in which case we immediately return an Error. We include this check to prevent the interpreter to run forever on programs with an infinite number of execution paths. 
 
+\iffalse
 \subsection{Sequence statements}
 
 We define the following class to represent a sequence statement:
@@ -134,3 +136,5 @@ We define the following class to represent an \textsl{expression}-statement:
 case class ExpStm(e: Exp)
 \end{lstlisting}
 To interpret this, we interpret $e$. For each result of this, the result of the statement, will be the value of the expression and the original environment. 
+
+\fi
