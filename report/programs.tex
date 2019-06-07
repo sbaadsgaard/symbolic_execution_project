@@ -7,7 +7,7 @@
 		->,
 		shorten >=2pt,
 		>=stealth,
-		node distance=1cm,
+		node distance=1cm and -0.5cm,
 		noname/.style={%
 			minimum width=4em,
 			minimum height=2em,
@@ -27,8 +27,8 @@
 		(2) edge [bend right=70pt] 							node[right] {$False$} (6)
 		(2) edge 											node[right] {$True$} (3)
 		(3) edge											node {} (4)
-		(4) edge 											node[right, below] {$True$} (5)
-		(4) edge											node[right, below] {$False$} (6);
+		(4) edge 											node[right] {$True$} (5)
+		(4) edge											node[left] {$False$} (6);
 		\end{tikzpicture}
 	\end{center}
 	\caption{Control-flow graph for \textsc{ComputeRevenue}}
@@ -87,10 +87,10 @@
 		
 		\path (1) edge             									node {} (2)
 		(2) edge                  								    node {} (3)
-		(3) edge [bend left = 50pt] 								node[right] {$False$} (6)
+		(3) edge [bend left = 55pt] 								node[right] {$False$} (6)
 		(3) edge                 								    node[right] {$True$} (4)
 		(4) edge 												    node {} (5)
-		(5) edge [bend left = 50pt]								node {} (3);
+		(5) edge [bend left = 55pt]								node {} (3);
 		\end{tikzpicture}
 	\end{center}
 	\caption{Control-flow graph for \textsc{ComputePow}}
@@ -105,7 +105,7 @@
 			->,
 			shorten >=2pt,
 			>=stealth,
-			node distance=1cm,
+			node distance=2cm and -0.5cm,
 			noname/.style={%
 				minimum width=4em,
 				minimum height=2em,
@@ -125,8 +125,8 @@
 				New PC: $[q_1, q_2, \ldots, \neg q_k]$
 				\end{tabular}};
 			
-			\path (1) edge node[below right, align=center] {$q_1\land\ldots \land q_k$ \\ satisfiable} (2) 
-			(1) edge node[below left, align=center] {$q_1\land \ldots \land \neg q_k$\\satisfiable} (3);	
+			\path (1) edge node[above left, align=center] {$q_1\land\ldots \land q_k$ \\ satisfiable} (2) 
+			(1) edge node[above right, align=center] {$q_1\land \ldots \land \neg q_k$\\satisfiable} (3);	
  			\end{tikzpicture}
 		\end{center}
 		\caption{Abstract overview of the symbolic execution of an \textsl{if}-statement, which potentially leads to two new execution paths, each with a new \pc.}

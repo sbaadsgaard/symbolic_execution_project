@@ -165,8 +165,8 @@ In this chapter we will cover the theory behind symbolic execution. We will star
 			\bowtie & \in \textsc{Constraint} && := \quad \leq \alt \geq \alt =\\
 			p & \in \textsc{Polynomial} && := \quad a \alt a\cdot x \alt p \circ p\\
 			\circ & \in \textsc{Operator} && := \quad + \alt - \\
-			a & \in \textsc{Coefficient} && := \quad 0 \alt -1 \alt 1 \alt \ldots \\
-			x & \in \textsc{Variable} && := \quad 0 \alt -1 \alt 1 \alt \ldots		
+			a & \in \textsc{Integer} && := \quad 0 \alt 1 \alt -1 \alt \ldots\\ 
+			x & \in \textsc{Variable} && := \quad a \alt b \alt c \alt \ldots		
 		\end{alignat*} 
 	We now want to decide if the formula is satisfiable with respect to the theory. To be satisfiable w.r.t LIA, we require that there exist an assignment of truth values to the boolean variables such that the formula evaluates to \emph{true}, and that for such an assignment, there exists an assignment of integer values to the variables in the underlying expressions such that all the constraints are satisfied. In the previous section we showed that 
 	
@@ -189,61 +189,11 @@ In this chapter we will cover the theory behind symbolic execution. We will star
 		\bowtie & \in \textsc{Constraint} && := \quad \leq \alt \geq \alt =\\
 		p & \in \textsc{Polynomial} && := \quad a \alt a\cdot x \alt p \circ p\\
 		\circ & \in \textsc{Operator} && := \text{\hl{$\quad + \alt - \alt \cdot \quad$}} \\
-		a & \in \textsc{Coefficient} && := \quad \mathbb{Z}\\
-		x & \in \textsc{Variable} && := \quad \mathbb{Z}
+		a & \in \textsc{Integer} && := \quad 0 \alt 1 \alt -1 \alt \ldots\\ 
+		x & \in \textsc{Variable} && := \quad a \alt b \alt c \alt \ldots
 	\end{alignat*}
 	
-	This definition allows for expressions with nonlinear terms such as $ 5\cdot x - 10 \leq 3 \cdot y^3$. Such expressions belong to the \emph{Theory of Nonlinear Integer Arithmetic}(NLIA). This theory is \emph{undecidable}, meaning that there does not exist an algorithm that always halt with a correct answer to the question of whether or not there exists an assignment of integer values to the variables such that all constraints are satisfied. This means that if we try to do symbolic execution on a program that has conditional statements with such nonlinear expressions in the condition, we might get stuck trying to decide the satisfiability of a path constraint forever. To avoid this, we can include some other termination criteria, such as a time limit, at which point we output \emph{unknown} instead of \emph{yes} or \emph{no}. This leaves us with two options. We can continue the symbolic execution and assume that the \pc is in fact satisfiable. In this case, we might end up exploring execution paths that are infeasible, meaning that no concrete input values will cause the program to execute along this path. The other option is to assume that the \pc is unsatisfiable. In this case we do not explore infeasible execution paths, but we can no longer be sure that we explore all feasible paths.
+	This definition allows for expressions with nonlinear terms such as $ 5\cdot x - 10 \leq 3 \cdot y^3$. Such expressions belong to the \emph{Theory of Nonlinear Integer Arithmetic}(NLIA). This theory is \emph{undecidable}, meaning that there does not exist an algorithm that always halt with a correct answer to the question of whether or not there exists an assignment of integer values to the variables such that all constraints are satisfied. 
 	
-	
-	
-	
-	
-	
-	
-	
-	
-	\iffalse. In this problem we are given a logical formula over boolean variables $q_1, q_2, \ldots, q_n$, or their negation. The task is then to decide if there exist an assignment of boolean values $true$ and $false$ to this variables, so that the formula evaluates to \emph{true}. Furthermore, each of these boolean variables represent some formula belonging to a theory. Such a theory could be the \emph{theory of Linear Integer Arithmetic(\textbf{LIA})} which we will explain shortly. If there exist an assignment that satisfies the original formula, this assignment must also be valid w.r.t the given theory. Note that the first part of this problem is simply the \emph{boolean SAT problem}, which is known to be \emph{NP-complete}, so solving this part alone takes worst-case exponential time \cite{DeMoura2011}.
-	
-
-	\subsubsection{The theory of linear integer arithmetic}
-		The conditions that we have studied so far, have all had the following form:
-		
-		\begin{align*}
-			& a_0 +  a_1 \cdot x_1 + a_2\cdot x_2 + \ldots + a_n \cdot x_n \bowtie b\\
-			& where\\
-			& \bowtie \in \{\leq, \geq, =\}\\
-			& x_1, \ldots, x_n \in \mathbb{Z}			
-		\end{align*}
-		
-	which is exactly the atomic expressions in the \emph{theory of linear integer arithmetic} \textbf{(LIA)}. 
-	
-	As an example, consider the following \emph{path-constraint} again:
-	
-	\begin{equation}
-		true \land (\alpha \cdot 2 \geq 16) \land \neg (2\cdot \alpha - 10 < \beta).
-	\end{equation}	
-	We can express this as the \textbf{SMT} formula $true \land q_1 \land \neg q_2$ with $q_1 = (\alpha \cdot 2 \geq 16)$ and $q_2 = (2\cdot \alpha - \beta < 10)$, where $q_1$ and $q_2$ are atomic expressions of \textbf{LIA}.
-	
-	An important property of \textbf{LIA} is the fact that it is decidable. Given a formula over a number of atomic expressions, we can construct a \emph{Integer Linear Program} \textbf{(ILP)} with these expressions as constraints, and a constant objective function. This \textbf{ILP} is feasible if and only if the formula is satisfiable. We can check the feasibility of the \textbf{ILP} using the \emph{branch-and-bound} algorithm. If it is feasible, we will also get a satisfying assignment. 
-	
-	\subsubsection{Undecidable theories}
-	
-	We just saw that the conditions we have considered so far, are atomic expressions in the \emph{Theory of Linear Integer Arithmetic}, and that this theory is decidable. This means that we can always decide whether a given execution path is eligible for exploration.
-	 
-	Lets consider the following extension of the conditions that we can encounter:
-	
-	  
-	 
-	 \begin{align*}
-	 	& a_0 \circ a_1 \cdot x_1 \circ a_2 \cdot x_2 \circ \ldots \circ a_n \cdot x_n \bowtie b \\
-	 	& where \\
-	 	& \bowtie \in  \{\leq, \geq, =\}\\
-	 	& \text{\hl{$\circ \in  \{ +, \cdot \}$}}\\
-	 	& x_1, \ldots, x_n \in \mathbb{Z}
-	 \end{align*}
-	
-	This allows for non linear constraints such as $3 \cdot \alpha ^3 - 7\cdot \beta ^ 5 \leq 11$. Such expressions does not belong to \textbf{LIA}, so we are no longer guaranteed that we can decide satisfiability of the \emph{path-constraints}. In fact, they belong to the \emph{Theory of Nonlinear Integer Arithmetic} which has been shown to be an undecidable theory. %TODO cite paper that shows undecidability of NLIA
-	This presents us with a major limitation of symbolic execution, since we might get stuck trying do decide the satisfiability of a \emph{path-constraint} that is not decidable.
-	
-	\fi	
+	\subsubsection{Consequences of undecidable theories for symbolic execution.}
+	If we do symbolic execution on a program that has conditional statements with conditions that belong to an undecidable theory, we might get stuck trying to decide the satisfiability of a path constraint forever. To avoid this, we can include some other termination criteria, such as a time limit, at which point we output \emph{unknown} instead of \emph{yes} or \emph{no}. This leaves us with two options. We can continue the symbolic execution and assume that the \pc is in fact satisfiable. In this case, we might end up exploring execution paths that are infeasible, meaning that no concrete input values will cause the program to execute along this path. The other option is to assume that the \pc is unsatisfiable. In this case we do not explore infeasible execution paths, but we can no longer be sure that we explore all feasible paths.

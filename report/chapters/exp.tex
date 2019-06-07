@@ -67,40 +67,15 @@ Finally we define the syntax of a \explanguage program to be one or more functio
 
 \section{Concrete interpreter for \explanguage}
 
-
-\iffalse
-\begin{figure}[!h]
-	\begin{lstlisting}[style=simple]
-		object ConcreteGrammar {
-			sealed trait ConcreteValue
-			object ConcreteValue {\\
-				case class True() extends ConcreteValue
-				case class False() extends ConcreteValue
-				case class IntValue(v: Int) extends ConcreteValue
-				case class UnitValue() extends ConcreteValue
-			}
-			sealed trait Exp
-			sealed trait Stm
-			case class Id(s: String)
-			case class FDecl(name: Id, params: List[Id], stm: Stm)
-			case class Prog(funcs: HashMap[String, FDecl], fCall: CallExp)	
-		}
-	\end{lstlisting}
-	\caption{High level overview of grammar implementation in \textsl{Scala}.}
-\end{figure}
-\fi
-
 To interpret \explanguage we define the three following functions
 
 \begin{figure}[!h]
 	\begin{lstlisting}[style=simple]
-	class ConcreteInterpreter {
 		def interpProg(p: Prog): Result[ConcreteValue, String]
 			
-		def interpExp(p: Prog, e: Exp, env: HashMap[Id, ConcreteValue]): Result[ConcreteValue, String]
+		def interpExp(p: Prog, e: Exp, env: Map[Id, ConcreteValue]): Result[ConcreteValue, String]
 						  
-		def interpStm(p: Prog, s: Stm, env: HashMap[Id, ConcreteValue]): Result[(ConcreteValue, HashMap[Id, ConcreteValue]), String]
-	}
+		def interpStm(p: Prog, s: Stm, env: Map[Id, ConcreteValue]): Result[(ConcreteValue, Map[Id, ConcreteValue]), String]
 	\end{lstlisting}
 	\caption{High level overview of the interpreter implementation in \textsl{Scala}.}
 \end{figure}
@@ -145,7 +120,8 @@ We define three functions \textsl{map} and \textsl{flatMap} and traverse:
 	.map(w :: _))
 	}
 \end{lstlisting}
-For some result \textsl{r}, \textsl{map} allows us to apply a function $f: V \rightarrow T$ to \textsl{v} if \textsl{r = Ok(v)}. Otherwise we simply return \textsl{r}. \textsl{flatMap} has the same functionality except that we apply a function that also returns a \textsl{Result}. This way we avoid nesting like \textsl{Ok(Ok(v))}. These two functions allows us to handle errors seamlessly. If, for example we wish to interpret an arithmetic expression \textsl{AExp(e1, e2, Add())}, we simply do 
+For some result \textsl{r}, \textsl{map} allows us to apply a function $f: V \rightarrow T$ to \textsl{v} if \textsl{r = Ok(v)}. Otherwise we simply return \textsl{r}. \textsl{flatMap} has the same functionality except that we apply a function that also returns a \textsl{Result}. This way we avoid nesting like \textsl{Ok(Ok(v))}. These two functions allows us to handle errors seamlessly. If, for example we wish to interpret an arithmetic expression \textsl{AExp(e1, e2, Add())}, we simply do
+\newpage 
 
 \begin{lstlisting}[style=simple]
 	interpExp(p, e1, env).flatMap(

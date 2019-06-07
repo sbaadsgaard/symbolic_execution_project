@@ -47,44 +47,66 @@ case class Unknown() extends PathResult
 
 The definition of \textsl{PathConstraint} consists of two elements. \textsl{conds} is a  list of symbolic booleans from the conditional statements met so far. The \textsl{PathStatus} tells us whether or not we can guarantee that the path constraint is in fact satisfiable. This is necessary because we allow for nonlinear constraints, which our SMT solver may fail to solve. In the case of a failure, we still explore the path but the status of the \pc will be \textsl{Unknown}, meaning that we cannot guarantee that there exists concrete input values that follow this path.
 
-\section{Interpretation of expressions}
-To interpret an expression, we define the following function
+\section{Symbolic Interpretation of expressions}
+To symbolically interpret an expression, we define the following function illustrated in figure \ref{interpExpSymbolic}:
 
-\begin{lstlisting}[style = simple]
- def interpExp(p: Prog, e: Exp, env: HashMap[Id, SymbolicValue], 
- 	pc: PathConstraint, forks: Int): List[ExpRes]
-  
- case class ExpRes ExpRes(res: Result[SymbolicValue, String], 
- 	pc: PathConstraint)
-\end{lstlisting}
+\begin{figure}[!h]
+	\begin{lstlisting}[style = simple]
+		def interpExp(p: Prog, e: Exp, env: Map[Id, SymbolicValue], 
+				pc: PathConstraint, forks: Int): 		
+					List[(Result[SymbolicValue, String], PathConstraint)]
+	\end{lstlisting}
+	\caption{Symbolic version of \textsl{InterpExp}}	
+	\label{interpExpSymbolic}
+\end{figure}
 
-This version of \textsl{interpExp} is an extension of the version from the concrete interpreter. It still depends current environment, which is now of type \mbox{\textsl{Map[Id, SymbolicValue]}}, and the program itself. However, it now also depends on a \pc and integer \textsl{forks} which is the current number of times the execution has been forked. The return type has also changed to \textsl{List[ExpRes]} where \textsl{ExpRes} is pair consisting of a symbolic value, which is the value of the expression, and a \pc. This tells us that the symbolic interpretation of an expression does not always result in a single symbolic value. In fact it will result in in a list of symbolic values, one for each possible execution path. This also effects how we interpret the different types of expressions. Most of them consists of one or more sub-expressions, each of which may result in several different values, so we have to consider all possible combinations of results. Next we will see how we deal with this in the interpretation of arithmetic and boolean expressions and function calls. 
+\begin{figure}[!h]
+	\begin{lstlisting}[style = simple]
+		def interpExp(p: Prog, e: Exp, env: Map[Id, ConcreteValue]): Result[ConcreteValue, String]
+	\end{lstlisting}
+	\caption{Concrete version of \textsl{InterpExp}}
+	\label{interpExpConcrete}
+\end{figure}
+\newpage
 
-\subsection{Arithmetic and boolean expressions}
+By comparing figure \ref{interpExpSymbolic} with figure \ref{interpExpConcrete}, we see that the symbolic version of \textsl{interpExp} is an extension of the version from the concrete interpreter. It still depends current environment, which is now of type \mbox{\textsl{Map[Id, SymbolicValue]}}, and the program itself. However, it now also depends on a \pc to keep track on any constraints placed on the symbolic values,
+and \textsl{forks} which is the current number of times the execution has been forked. This value is used to enforce an upper bound on the number of execution paths that we explore to avoid running forever.
+
+The return type has also changed. Instead of returning a single result, it returns a list of pairs consisting of a result and a \pc, one for each possible execution path. This also effects how we interpret the different types of expressions. Most of them consists of one or more sub-expressions, each of which may result in several different results, so we have to consider all possible combinations of results. We will demonstrate this by looking at the interpretation of arithmetic expressions and function calls. 
+
+\subsection{Arithmetic expressions}
 Consider an arithmetic expression 
 \textsl{AExp(e1: Exp, e2: Exp, op: AOp)}. When we recursively interpret $e_1$ and $e_2$, we get two lists $L_{e_1}, L_{e_2}$ of possible results. We need to take the cartesian $L_{e_1} \times L_{e_2}$ of the lists, and for each pair of results, we have to evaluate the arithmetic expression. 
 
-To do this we use a \textsl{for-comprehension} which given two lists, iterate over each ordered pair of elements from the two lists.  For each pair, we \textsl{flatMap} over the two results, and if no errors are encountered, we check that both expressions evaluates to symbolic integers and compute the result. If both sub expression evaluate to concrete, we compute the result as we would do in a concrete interpretation. 
-Boolean expressions are interpreted in a similar fashion.
+To do this we use a \textsl{for-comprehension} which given two lists, iterate over each ordered pair of elements from the two lists.  For each pair, we \textsl{flatMap} over the two results, and if no errors are encountered, we check that both expressions evaluates to symbolic integers and compute the result. If both sub expression evaluate to concrete integers, we compute the result as we would do in a concrete interpretation. 
 
 \subsection{Function calls}
 Consider a \textsl{Call}-expression \textsl{CallExp(id: Id, args: List[Exp])}.
 First, we must check that the function is defined and that the formal and actual argument list does not differ in length. If both of these checks out, we map \textsl{interpExp} on to \textsl{args}. This gives a list of lists $[L_{e_1}, L_{e_2}, \ldots, L_{e_n}]$, where the $i'th$ list contains the possible results of interpreting the $i'th$ expression in \textsl{args}.
 We take the cartesian product $L_{e_1} \times L_{e_2} \times \ldots \times L_{e_n}$, which gives us all possible argument lists. For each of these lists, we zip it with formal argument list. This gives a list of the following type \textsl{List[(ExpRes, Id)]}. We attempt to build a local environment by folding over this list, starting with the original environment that was passed with the call to \textsl{interpExp}. If we encounter an error, either from the interpretation of the expressions in \textsl{args} or from an expression evaluating to the unit value, the result of the function call with this argument list will be that error. Otherwise, for each pair of result and id, we make a new environment with the appropriate binding added. We then interpret the statement in the function body  with the local environment, and the result of the function call with this argument list, will be the value of the statement. 
 
-\section{Interpreting statements}
+\section{Symbolic interpretation of statements}
 
-To interpret statements, we define the following function:
+To symbolically interpret statements, we define the following function shown in figure \ref{interpStmSymbolic}:
 
-\begin{lstlisting}[style=simple]
-def interpStm(p: Prog, stm: Stm, env: Map[Id,SymbolicValue], 
-	pc: PathConstraint, forks: Int): List[StmRes]
-			  
-case class StmRes(res: Result[SymbolicValue, String], 
-	env: Map[Id, SymbolicValue], pc: PathConstraint)
-\end{lstlisting}
+\begin{figure}[!h]
+	\begin{lstlisting}[style=simple]
+		def interpStm(p: Prog, stm: Stm, env: Map[Id,SymbolicValue], 
+			pc: PathConstraint, forks: Int): 
+				List[(Result[SymbolicValue, String], Map[Id, SymbolicValue], 	PathConstraint)]
+	\end{lstlisting}
+	\caption{Symbolic version of \textsl{interpStm}}
+	\label{interpStmSymbolic}
+\end{figure}
 
-This function is a also an extension of the concrete version, and it now also depends on a \pc and the number of times we forked the execution. The return type has also changed in a similar fashion, so we new return a list of results, one for each possible execution path. Next we describe the symbolic interpretation of conditional statements which is where the key challenges in symbolic execution presents itself. 
+\begin{figure}[!h]
+	\begin{lstlisting}[style=simple]
+		def interpStm(p: Prog, s: Stm, env: Map[Id, ConcreteValue]): Result[(ConcreteValue, Map[Id, ConcreteValue]), String]
+	\end{lstlisting}
+	\caption{Concrete version of \textsl{interpStm}}
+	\label{interpStmConcrete}
+\end{figure}
+By comparing figure \ref{interpStmSymbolic} and figure \ref{interpStmConcrete} we see that this version of \textsl{interpStm} is also an extension of its concrete counterpart in the same way that the symbolic version of \textsl{interpExp} is. It now also depend on a \pc and the number of forked executions. Similarly the return type has changed so that it now returns a list of triples consisting of a result, a \pc and a potentially updated environment. We will now demonstrate how we interpret conditional statements. We will also see how we deal with undecidable \emph{path-constraints} and how we limit the number of paths that we explore.
 
 
 \iffalse
@@ -97,16 +119,16 @@ value, we instead return error and the original environment.
 
 \subsection{Conditional statements}
 
-We define the following classes to represent each type of conditional statement:
+As mentioned earlier, \explanguage supports three different types of conditional statements, which are represented by the following classes:
 
 \begin{lstlisting}[style=simple]
 	case class IfStm(cond: Exp, thenStm: Stm, elseStm: Stm)
 	case class WhileStm(cond: Exp, doStm: Stm)
 	case class AssertStm(cond: Exp)
 \end{lstlisting}
-For each possible result of interpreting the condition expression we do the following: If it is either \textsl{True()} or \textsl{False()}, the expression must have been from symbols, so we can continue as we would have done during a concrete interpretation, with the same \pc and value of \textsl{forks}.
+For each possible result of interpreting the condition expression we do the following: If it is either \textsl{True()} or \textsl{False()}, the expression must have been free from symbols, so we can continue as we would have done during a concrete interpretation, with the same \pc and value of \textsl{forks}.
 
-\noindent If the result is a symbolic boolean expression $b$, we have two potential paths to follow. We must check the satisfiability of \textsl{pc :+ b} and \textsl{pc :+ Not(b)}. We do this by calling \textsl{(checkSat(pc, b)} and \textsl{checkSat(pc, Not(b))}. If \textsl{checkSat} reports \textsl{SATISFIABLE}, the given path is eligible for exploration. If it reports \textsl{UNSATISFIABLE}, we can safely ignore the path. If it reports \textsl{UNKNOWN}, we still explore the path, but the new \pc will have its status set to \textsl{UNKNOWN()}.
+\noindent If the result is a symbolic boolean expression $b$, we have two potential paths to follow. We must check the satisfiability of \textsl{pc :+ b} and \textsl{pc :+ Not(b)}. We do this by calling \textsl{(checkSat(pc, b)} and \textsl{checkSat(pc, Not(b))}. If \textsl{checkSat} reports \textsl{SATISFIABLE}, the given path is eligible for exploration. If it reports \textsl{UNSATISFIABLE}, we can safely ignore the path. If it reports \textsl{UNKNOWN}, we still explore the path, but the new \pc will have its status set to \textsl{Unknown}.
  If both calls to \textsl{checksat} return either \textsl{SATISFIABLE} or \textsl{UNKNOWN}, we explore both paths, and return a list containing the results of the first path, followed by the results of the second path.
 
 \subsubsection{Checking satisfiability}
