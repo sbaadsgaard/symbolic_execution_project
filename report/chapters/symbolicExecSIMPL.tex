@@ -1,11 +1,11 @@
 In this chapter we will describe a symbolic interpreter for \explanguage. First, we describe how we must extend the grammar, to be able to do symbolic execution. Next we describe the implementation of \textsl{interpExp} and \textsl{interpStm}, and how these relate to their concrete counterparts. 
 \section{Extension of grammar}
 
-The original language have three types of values, namely integers, booleans and the unit value. Symbolic execution requires that we extend the language to include symbolic counterparts of these. We therefore introduce a symbolic value which can either be a symbolic integer, a symbolic boolean or the unit value.
+The original language have three types of values, namely integers, booleans and the unit value. Symbolic execution requires that we extend the language to include symbolic counterparts of these. We therefore introduce a symbolic value which can either be a symbolic integer$(\widehat{int})$, a symbolic boolean$(\widehat{bool})$ or the unit value.
 
 \begin{alignat*}{3}
-	val & \in \textsc{SymbolicValue} && := \quad int_{sym} \alt
-	bool_{sym} \alt unit
+	val & \in \textsc{SymbolicValue} && := \quad  \widehat{int} \alt
+	\widehat{bool} \alt unit
 \end{alignat*}
 
 
@@ -17,18 +17,18 @@ The original language have three types of values, namely integers, booleans and 
 \begin{alignat*}{3}
 	int & \in \textsc{Integer} && := \quad 0 \alt 1 \alt -1 \alt \ldots\\
 	sym & \in \textsc{Symbol} && := \quad a \alt b \alt c \alt \ldots \\	
-	int_{sym} & \in \textsc{SymbolicInteger} && := \quad int \alt sym \alt int_{sym} + int_{sym} \\
-	& && \quad \alt int_{sym} - int_{sym} \alt int_{sym} * int_{sym}\\
-	& && \quad \alt int_{sym} / int_{sym}\\
+	\widehat{int} & \in \textsc{SymbolicInteger} && := \quad int \alt sym \alt \widehat{int} + \widehat{int} \\
+	& &&  \alt \ \ \quad \widehat{int} - \widehat{int} \alt \widehat{int} * \widehat{int}\\
+	& && \alt \ \ \quad  \widehat{int} / \widehat{int}\\
 \end{alignat*}
 
 A symbolic boolean can either be $True$, $False$ or an symbolic boolean expression, which is a comparison of two symbolic integers. Finally a symbolic boolean can be the negation of a symbolic boolean. This extension is needed to be able to represent the two different \emph{path-constraints} that might arise from a conditional statement.
 
 \begin{alignat*}{3}
 	bool & \in \textsc{Boolean} && := \quad True \alt False\\
-	bool_{sym} & \in \textsc{SymbolicBoolean} && := \quad int_{sym} < int_{sym} \alt int_{sym} > int_{sym}\\
-	& && \quad \alt int_{sym} \leq int_{sym} \alt  int_{sym} \geq int_{sym}\\
-	& && \quad \alt  int_{sym} == int_{sym} \alt  ! \ int_{sym}
+	\widehat{bool} & \in \textsc{SymbolicBoolean} && := \quad \widehat{int} < \widehat{int} \alt \widehat{int} > \widehat{int}\\
+	& && \quad \alt \ \ \widehat{int} \leq \widehat{int} \alt  \widehat{int} \geq \widehat{int}\\
+	& && \quad \alt \ \ \widehat{int} == \widehat{int} \alt  ! \ \widehat{bool}
 \end{alignat*}
 
 

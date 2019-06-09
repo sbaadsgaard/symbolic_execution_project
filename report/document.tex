@@ -9,16 +9,19 @@
 \newcommand{\alt}{ \ | \ }
 % Title Page
 \title{
-	\textbf{Symbolic Execution(Working title)}\\
-	{\large Aarhus Universitet}\\
-	{\includegraphics[scale=0.5]{ausegl_blaa.png}}	
+	\textbf{Symbolic \& Concolic Execution}\\
+	{ Symbolsk og Concolic eksekvering}\\
+	\bigskip
+	%{\includegraphics[scale=0.5]{ausegl_blaa.png}}	
+	\large Bachelor report (15 ECTS) in Computer Science, Aarhus University\\
 	}
-\author{Søren Baadsgaard}
+\author{Søren Baadsgaard $\cdot$ 201305284 \\
+	Advisor: Magnus Madsen}
 \begin{document}
 \maketitle
 
 \begin{abstract}
-	
+	The focus of this report is symbolic execution, which is a technique for systematically exploring all execution paths of a program, and for each path generate concrete input values that will execute along this path. We describe the theory behind symbolic execution and discuss a number of limitations to the technique. Furthermore we describe a different technique called concolic execution, that combines concrete and symbolic execution to mitigate some of the challenges of pure symbolic execution. Finally, we demonstrate symbolic execution by describing and comparing an implementation of both a concrete and symbolic interpreter for a small toy language. 
 \end{abstract}
 
 \tableofcontents
@@ -43,7 +46,7 @@
 
 \appendix
 
-\bibliographystyle{plainnat}
+\bibliographystyle{authordate3}
 \bibliography{mybib}
 
 \end{document}          

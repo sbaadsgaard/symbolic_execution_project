@@ -21,34 +21,34 @@ To illustrate concolic execution, we consider the program from the motivating ex
 
 \noindent First we initialize the two environments. We let 
 \begin{equation*}
-	M_c = \{units = 27, \ cost = 34\}
+	M_c = \{units = 27, \ minimum = 34\}
 \end{equation*}
  where 27 and 34 is chosen randomly. We let
 \begin{equation*}
- 	M_s = \{units =\beta, \ cost = \alpha\}
+ 	M_s = \{units =\beta, \ minimum = \alpha\}
 \end{equation*}
 where $\alpha$ and $\beta$ are symbols. The first statement is an assignment statement, so we get two new environments:
 
 \begin{align*}
-	M_c & = \{units = 27, \ cost = 34, \ revenue = 54 \}\\
-	M_s & = \{units = \alpha, \ cost = \beta, \ revenue = 2\cdot \alpha \}
+	M_c & = \{units = 27, \ minimum = 34, \ total = 54 \}\\
+	M_s & = \{units = \alpha, \ minimum = \beta, \ total = 2\cdot \alpha \}
 \end{align*}
 
-Next, we reach an \textsl{if} statement with condition $revenue \geq 16$. Since $M_c(revenue) = 54$ we follow the \textsl{then} branch. We update the \emph{path-constraint} to $\lbrack (2\cdot \alpha \geq 16) \rbrack$. Next, we reach another \textsl{assign} statement, so we get the following environments:
+Next, we reach an \textsl{if} statement with condition $total \geq 16$. Since $M_c(total) = 54$ we follow the \textsl{then} branch. We update the \emph{path-constraint} to $\lbrack (2\cdot \alpha \geq 16) \rbrack$. Next, we reach another \textsl{assign} statement, so we get the following environments:
 
 \begin{align*}
-	M_c & = \{units = 27, \ cost = 34, \ revenue = 44 \}\\
-	M_s & = \{ units = \alpha, \ cost = \beta, \ revenue = 2 \cdot \alpha - 10 \}
+	M_c & = \{units = 27, \ minimum = 34, \ total = 44 \}\\
+	M_s & = \{ units = \alpha, \ minimum = \beta, \ total = 2 \cdot \alpha - 10 \}
 \end{align*}
 
-Next, we reach an \textsl{assert} statement which condition $revenue \geq cost$. Since $M_c(revenue) = 44$ the assertion succeeds. We update the \emph{path-constraint to} $\lbrack (2\cdot \alpha \geq 16) , ((2\cdot \alpha - 10) \geq \beta) \rbrack$. Finally we return 44, which finishes one execution path.\\
-To discover a new \pc, we make a new \pc by negating the final condition of the current \pc, so we get $\lbrack (2\cdot \alpha \geq 16), \neg ((2\cdot \alpha - 10) \geq \beta) \rbrack$. To get the next set of concrete input values, $M_c$ we solve the following system of constraints
+Next, we reach an \textsl{assert} statement which condition $total \geq minimum$. Since $M_c(total) = 44$ the assertion succeeds. We update the \emph{path-constraint to} $\lbrack (2\cdot \alpha \geq 16) , ((2\cdot \alpha - 10) \geq \beta) \rbrack$. Finally we return 44, which finishes one execution path.\\
+To discover a new \pc, we make a new \pc by negating the final condition of the current \pc, so we get $\lbrack (2\cdot \alpha \geq 16), \neg ((2\cdot \alpha - 10) \geq \beta) \rbrack$. To get the next set of concrete input values, we solve the following system of constraints
 \begin{align*}
 	2\cdot \alpha \geq 16\\
 	(2\cdot \alpha - 10) < \beta.
 \end{align*}
 This gives us e.g $\alpha = 8$ and $\beta = 7$. 
-We then execute the program with $units = 8$ and $cost = 7$. This execution will follow the same path until we reach the \textsl{assert}-statement. This time the execution results in an error due to the assertion being violated, and we have now explored all possible paths from the \textsl{assert}-statement. To generate the next input values, we negate the condition from the first \textsl{if}-statement and get $[\neg (2\cdot \alpha \geq 16)]$. From this we get e.g $\alpha = 5$. Since there are no constraints on the value of $\beta$, we keep the previous value.  We now execute the program with $units = 5$ and $cost = 7$. This execution will not follow the \textsl{then} branch in the \textsl{if}-statement, so we immediately return $revenue$ which is 10. At this point we have explored all possible branches from each conditional statement, so we have explored all execution paths. 
+We then execute the program with $units = 8$ and $minimum = 7$. This execution will follow the same path until we reach the \textsl{assert}-statement. This time the execution results in an error due to the assertion being violated, and we have now explored all possible paths from the \textsl{assert}-statement. To generate the next input values, we negate the condition from the first \textsl{if}-statement and get $[\neg (2\cdot \alpha \geq 16)]$. From this we get e.g $\alpha = 5$. Since there are no constraints on the value of $\beta$, we keep the previous value.  We now execute the program with $units = 5$ and $minimum = 7$. This execution will not follow the \textsl{then} branch in the \textsl{if}-statement, so we immediately return $total$ which is 10. At this point we have explored all possible branches from each conditional statement, so we have explored all execution paths. 
 
 \section{Handling undecidable \emph{path-constraints}} 
 In the previous chapter we described how symbolic execution was limited by the ability to decide satisfiability of a \pc. For example, if we are executing a program with inputs $x$ and $y$ and encounter a non linear condition $ 5\cdot x - 10 \leq 3 \cdot y^3$, we might fail to decide the satisfiability of the two branches. In this case we can assume that the paths are not satisfiable and ignore them, or assume that the paths are satisfiable and continue. In the first case, we potentially miss a large number of interesting paths, and in the second case we can no longer guarantee that we only explore feasible paths.\\

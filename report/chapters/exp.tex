@@ -15,16 +15,16 @@ In this chapter we introduce the toy language, called \explanguage. We start by 
 \subsection{Expressions}
 
 
-Expressions consists of concrete values which can be integers$\langle I, \rangle$, booleans$\langle B \rangle$, and a special \textsl{unit} value. Furthermore they consist of variables referenced by identifiers. Finally they consist of arithmetic operations on integers and comparison of integers 
+Expressions consists of concrete values which can be integers, booleans, and a special \textsl{unit} value. Furthermore they consist of variables referenced by identifiers. Finally they consist of arithmetic operations on integers and comparison of integers 
 
 \begin{alignat*}{3}
 	int & \in \textsc{Integer} && := \quad 0 \alt 1 \alt -1 \alt \ldots\\
 	bool & \in \textsc{Boolean} && := \quad True \alt False\\
 	val & \in \textsc{ConcreteValue} && := \quad int \alt bool \alt unit\\
 	id & \in \textsc{Identifier} && := \quad a \alt b \alt c \alt \ldots \\
-	exp & \in \textsc{Expression} && := \quad val \alt id\\ & && \alt exp + exp \alt exp - exp \alt exp * exp \alt exp / exp\\
-	& && \alt exp < exp \alt exp > exp \alt exp \leq exp\\
-	& &&  \alt exp \geq exp \alt exp == exp
+	exp & \in \textsc{Expression} && := \quad val \alt id\\ & && \alt \quad \ \ exp + exp \alt exp - exp \alt exp * exp \alt exp / exp\\
+	& && \alt \quad \ \ exp < exp \alt exp > exp \alt \quad \ \ exp \leq exp\\
+	& &&  \alt \quad \ \ exp \geq exp \alt exp == exp
 \end{alignat*}
 
 
@@ -38,8 +38,8 @@ The value of an assignment statement is the value of the expression on the right
 
 \begin{alignat*}{3}
 	stm & \in \textsc{Statement} && := \quad \textbf{if }  exp \textbf{ then } stm \textbf{ else } stm\\
-	& && \alt \textbf{while } exp \textbf{ do } stm\\
-	& && \alt \textbf{assert } exp
+	& && \alt \quad \ \ \textbf{while } exp \textbf{ do } stm\\
+	& && \alt \quad \ \ \textbf{assert } exp
 \end{alignat*}
 
 The condition expression must evaluate to a boolean value. The value of an \textsl{if}-statement is the value of the statement that gets evaluated depending on the value of the condition. The value of a \textsl{while}-statement is $unit$. The value of an \textsl{assert}-statement is $unit$ if the condition evaluates to $True$, otherwise it is an assertion error. Finally a statement can simply be an expression or a sequence of statements. 

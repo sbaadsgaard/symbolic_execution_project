@@ -1,18 +1,16 @@
 In this chapter we will present the motivation for this project, by considering a motivating example that illustrates the usefulness of symbolic execution as a software testing technique.
 
 \section{A motivating example}
-Consider a company that sells a product with a unit price 2. If the revenue of an order is greater than or equal 16, a discount of 10 is applied. The following program that takes integer inputs $units$ and $cost$ computes the total revenue based on this pricing scheme. 
-
-
+Consider a company that sells a product at a unit price 2. If the total price of an order is greater than or equal 16, a discount of 10 is applied. However, the total price including the discount may not be lower than some specified minimum, that may change from order to order. The following program \textsc{ComputeTotal} takes integer inputs $units$ and $minumum$, and computes the total price based on this pricing scheme.
 \begin{figure}[!h]
 	\begin{algorithmic}[1]
-		\Procedure{ComputeRevenue}{$units, cost$}
-		\State $revenue := 2\cdot units$
-		\If{$revenue \geq 16$}
-		\State $revenue := revenue - 10$
-		\Assert{$revenue \geq cost$}
+		\Procedure{ComputeTotal}{$units, minimum$}
+		\State $total := 2\cdot units$
+		\If{$total \geq 16$}
+		\State $total := total - 10$
+		\Assert{$total \geq limit$}
 		\EndIf
-		\State \Return{$revenue$}
+		\State \Return{$total$}
 		\EndProcedure
 	\end{algorithmic}
 \end{figure}
@@ -21,14 +19,13 @@ Consider a company that sells a product with a unit price 2. If the revenue of a
 
 \newpage
 
-After applying the discount, we assert that $revenue \geq cost$ since we do not wish to sell at a loss. 
 We would like to know if this program ever fails due an assertion error, so we have to figure out if there exist integer inputs for which the program reaches the \textsl{Assertion Error} node in the control-flow graph. 
-We might try to run the program on different input values, e.g $(units = 8, cost = 5)$, $(units = 7, cost = 10)$. These input values does not cause the program to fail, but we are still not convinced that it wont fail for some other input values.
-By observing the program for some time, we realize that the input must satisfy the following two constraints to fail:
+We might try to run the program on different input values, e.g $(units = 8, minimum = 5)$, $(units = 7, minimum = 10)$. These input values does not cause the program to fail, but we are still not convinced that it wont fail for some other input values.
+By studying the program for some time, we realize that if the input satisfies the following constraints
 
 \begin{align*}
-	 units \cdot 2 & \geq 16\\
-	 units \cdot 2 & < cost
+	 2\cdot units  & \geq 16\\
+	 2 \cdot units - 10 & < minimum
 \end{align*}
 
-which is the case e.g for $(units = 8, cost = 7)$. This realization was not immediately obvious, and for more complex programs, answering the same question is even more difficult. The key insight is that the conditional statements dictates which execution path the program will follow. In this report we will present \emph{symbolic execution}, which is a technique to systematically explore different execution paths and generate concrete input values that will follow these same paths. 
+it will fail. This i is the case e.g for $(units = 8, minimum = 7)$. This realization was not immediately obvious, and for more complex programs, answering the same question is even more difficult. The key insight is that the conditional statements dictates which execution path the program will follow. In this report we will present \emph{symbolic execution}, which is a technique to systematically explore different execution paths and generate concrete input values that will follow these same paths. 

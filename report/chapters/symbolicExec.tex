@@ -4,7 +4,7 @@ In this chapter we will cover the theory behind symbolic execution. We will star
 \section{Symbolic executing of a program}
 	
 	During a normal execution of a program, input values consists of integers. During a symbolic execution we replace concrete values by symbols e.g $\alpha$ and $ \beta$, that acts as placeholders for actual integers. We will refer to symbols and arithmetic expressions over these as \emph{symbolic values}.
-	 The program environment consists of variables that can reference both concrete and symbolic values. \cite{CadarSen13} \cite{King76}.
+	 The program environment consists of variables that can reference both concrete and symbolic values \citep{CadarSen13} \citep{King76}.
 	\\
 	To illustrate this, we consider the following program that takes parameters $a, b$ and $ c$ and computes their sum. The computation may seem unnecessarily complicated, but we do it this way to clearly what we mean by symbolic values, and how they relate to concrete values.
 	\begin{figure}[!h]
@@ -49,22 +49,22 @@ In this chapter we will cover the theory behind symbolic execution. We will star
 			\item \textbf{Only the second expression is satisfiable}:  Execution continues with a new \emph{path-constraint} $\lbrack q_1, q_2, \ldots, \neg q_k \rbrack$, along the path corresponding to $q_k$ evaluating to to \emph{false}.
 			
 			\item \textbf{Both expressions are satisfiable}: In this case, the execution can continue along two paths; one corresponding to the condition being \emph{false} and one being \emph{true}. At this point we \emph{fork} the execution by considering two different executions of the remaining part of the program. Both executions start with the same environment and \emph{path-constraints} that are equal up to the final condition. One will have $q_k$ as the final condition and the other will have $\neg q_k$. 
-			These two executions will continue along different execution paths that differ from this conditional statement and onward \cite{King76}.
+			These two executions will continue along different execution paths that differ from this conditional statement and onward \citep{King76}.
 		\end{itemize} 
 		
-		To illustrate this, we consider the program from the motivating example, that takes input parameters $units$ and $costs$:
+		To illustrate this, we consider the program from the motivating example, that takes input parameters $units$ and $minimum$:
 		
 		\motexample{}
 		\newpage
-		We assign symbolic values $\alpha$ and $\beta$ to $units$ and $cost$ respectively, and get the following symbolic execution:
+		We assign symbolic values $\alpha$ and $\beta$ to $units$ and $minimum$ respectively, and get the following symbolic execution:
 		
-		First we assign $2\cdot \alpha$ to $revenue$. We then reach an \textsl{if}-statement with condition $\alpha \cdot 2 \geq 16$. To proceed, we need to check the satisfiability of the following two expressions:
+		First we assign $2\cdot \alpha$ to $total$. We then reach an \textsl{if}-statement with condition $\alpha \cdot 2 \geq 16$. To proceed, we need to check the satisfiability of the following two expressions:
 		\begin{enumerate}
 			\item $true \land (\alpha \cdot 2 \geq 16)$
 			\item $true \land \neg (\alpha \cdot 2 \geq 16)$.
 		\end{enumerate}
 		Since both these expressions are satisfiable, we need to fork. We continue execution with a new  \emph{path-constraint} $\lbrack true, (\alpha \cdot 2 \geq 16) \rbrack$, along the path corresponding to the condition evaluating to \emph{true}. We also start a new execution with the same environment and a \emph{path-constraint} equal to $\lbrack true, \neg (\alpha \cdot 2 \geq 16) \rbrack$. This execution will continue along the path corresponding to the condition evaluating to \emph{false}, and it immediately reaches the return statement and returns $\alpha \cdot 2$.
-		The first execution assigns $2\cdot \alpha - 10$ to $revenue$ and then reach an \textsl{assert}-statement with condition $2\cdot \alpha - 10 \geq \beta$. We consider the following expressions:
+		The first execution assigns $2\cdot \alpha - 10$ to $total$ and then reach an \textsl{assert}-statement with condition $2\cdot \alpha - 10 \geq \beta$. We consider the following expressions:
 		\begin{enumerate}
 			\item $true \land (\alpha \cdot 2 \geq 16) \land (((2\cdot \alpha) - 10) \geq \beta)$
 			\item $true \land (\alpha \cdot 2 \geq 16) \land \neg (((2\cdot \alpha) - 10) \geq \beta)$
@@ -89,7 +89,7 @@ In this chapter we will cover the theory behind symbolic execution. We will star
 		true \land (\alpha \cdot 2 \geq 16) \land (2\cdot \alpha - 10 \geq \beta)
 	\end{equation*}
 	
-	which is one of the three resulting \emph{path-constraints} from the motivating example. From the first condition we get that $\alpha \geq 8$, so we can choose $\alpha = 8$. The second condition then gives us that $6 \geq \beta$, so we can choose $\beta = 6$. If we do a concrete execution of the program with $units = 8$ and $cost = 6$, it will follow the execution path that correspond to this \pc. We can do the same for the remaining two \emph{path-constraints}, and in the end we will have a pair of concrete input values for each possible execution path. So symbolic execution not only allows us to explore all possible execution paths, it also allows to generate a small set of concrete input values that cover all these paths.  
+	which is one of the three resulting \emph{path-constraints} from the motivating example. From the first condition we get that $\alpha \geq 8$, so we can choose $\alpha = 8$. The second condition then gives us that $6 \geq \beta$, so we can choose $\beta = 6$. If we do a concrete execution of the program with $units = 8$ and $minimum = 6$, it will follow the execution path that correspond to this \pc. We can do the same for the remaining two \emph{path-constraints}, and in the end we will have a pair of concrete input values for each possible execution path. So symbolic execution not only allows us to explore all possible execution paths, it also allows to generate a small set of concrete input values that cover all these paths.  
 
 	
 	\iffalse
@@ -112,7 +112,7 @@ In this chapter we will cover the theory behind symbolic execution. We will star
 	\subsection{The number of possible execution paths} 
 		Since each conditional statement in a given program can result in two different execution paths, the total number of paths to be explored is potentially exponential in the number of conditional statements. 
 		For this reason, the running time of the symbolic execution quickly gets out of hands if we explore all paths. 
-		 The challenge gets even greater if the program contains a looping statement. In this case, the number of execution paths is potentially infinite \cite{CadarSen13}.
+		 The challenge gets even greater if the program contains a looping statement. In this case, the number of execution paths is potentially infinite \citep{CadarSen13}.
 		  We illustrate this by considering the following program that computes $a^b$ for integers $a$ and $b$, with symbolic values $\alpha$ and $\beta$ for $a$ and $b$:
 		\begin{figure}[!h]
 			\begin{algorithmic}
@@ -159,7 +159,7 @@ In this chapter we will cover the theory behind symbolic execution. We will star
 	where we gathered the constant terms on the left hand side, and the symbols the right hand side. From the first equation we get that $\alpha \geq 8$ so we choose $\alpha = 8$. From the second equation we then get that $\beta \leq 6$, so we choose $\beta = 6$ and this gives us a satisfying assignment for the path constraint. Since deciding satsifiability of a \pc is such an critical part of symbolic execution, it is important to know if we can always correctly \emph{yes} or \emph{no}. In the next section we will study this question more closely, and we will see that it depends on what sort of constraints we place on the input values. 
 	\subsubsection{The SMT problem}
 
-	The example we just gave, is an instance of the \emph{Satisfiability Modulo Theories}(SMT) problem. To understand SMT, we first consider the \emph{Boolean Satisfiability}(SAT) problem. In this problem we are given a CNF formula , which is the logical conjunction 1 or more clauses, where a clause is the logical disjunction of one or more boolean variables or their negation.  We want to decide if there exists an assignment of truth values to each variable such that the formula evaluates to true. for example, $(q_1 \lor q_2 \lor \neg q3) \land (q_1 \lor \neg q_2 \lor q_3)$ is a \emph{yes}-instance of this problem, since $q_1 = true$, $q_2 = false$ and $q_3 = true$ causes the formula to evaluate to \emph{true}. On the other hand $(q_1 \lor q_2 \lor q_3) \land (\neg q_1 \lor \neg q_2 \lor \neg q_3)$ is clearly a \emph{no}-instance. This problem is \emph{decidable}, meaning that we can always correctly answer \emph{yes} or \emph{no} to whether or not a given formula is satisfiable. However it is also NP-complete, which means that we do not know any method of solving this problem with a better worst-case running time than simply trying all possible assignments which is exponential in the number of clauses\cite{Miltersen15}. SMT is then an extention of this problem. We now let the boolean variables $q_1, q_2, \ldots, q_n$ represent expressions from some theory such as the \emph{theory of integer linear arithmetic(LIA)} \cite{DeMoura2011}. In LIA, an expression e is defined as 
+	The example we just gave, is an instance of the \emph{Satisfiability Modulo Theories}(SMT) problem. To understand SMT, we first consider the \emph{Boolean Satisfiability}(SAT) problem. In this problem we are given a CNF formula , which is the logical conjunction 1 or more clauses, where a clause is the logical disjunction of one or more boolean variables or their negation.  We want to decide if there exists an assignment of truth values to each variable such that the formula evaluates to true. for example, $(q_1 \lor q_2 \lor \neg q3) \land (q_1 \lor \neg q_2 \lor q_3)$ is a \emph{yes}-instance of this problem, since $q_1 = true$, $q_2 = false$ and $q_3 = true$ causes the formula to evaluate to \emph{true}. On the other hand $(q_1 \lor q_2 \lor q_3) \land (\neg q_1 \lor \neg q_2 \lor \neg q_3)$ is clearly a \emph{no}-instance. This problem is \emph{decidable}, meaning that we can always correctly answer \emph{yes} or \emph{no} to whether or not a given formula is satisfiable. However it is also NP-complete, which means that we do not know any method of solving this problem with a better worst-case running time than simply trying all possible assignments which is exponential in the number of clauses \citep{Miltersen15}. SMT is then an extention of this problem. We now let the boolean variables $q_1, q_2, \ldots, q_n$ represent expressions from some theory such as the \emph{theory of integer linear arithmetic(LIA)} \citep{DeMoura2011}. In LIA, an expression e is defined as 
 		\begin{alignat*}{3}
 			e & \in \textsc{Expression} && := \quad p \bowtie p\\
 			\bowtie & \in \textsc{Constraint} && := \quad \leq \alt \geq \alt =\\
@@ -180,7 +180,7 @@ In this chapter we will cover the theory behind symbolic execution. We will star
 		(2\cdot \alpha < 4) \land (\alpha > 4)
 	\end{equation*}
 	
-	is clearly a \emph{no}-instance. If we let $q_1$ represent $(2\cdot \alpha < 4)$ and $q_2$ represent $(\alpha > 4)$, the formula becomes $q_1\land q_2$. The only assignment of truth variables that satisfy this is $q_1 = true$ and $q_2 = true$. But it is clear that there does not exist an integer value for $\alpha$ such that both the constraints hold. LIA is a \emph{decidable} theory, meaning that we can always correctly answer \emph{yes} or \emph{no} to an instance of the SMT problem, when it is with respect to LIA. Given an SMT formula, we can construct an Integer Linear Program with the expressions from the formula as constraints. This program will we feasible if and only if the SMT formula is satsifiable w.r.t LIA. We can check the feasibility of the Integer linear Program by using the \emph{branch-and-bound} algorithm. If the program is feasible, this will also give us a satisfying assignment \cite{Vanderbei01linearprogramming:}. This means that as long as we only consider programs with linear expressions as conditions, we can always decide the satisfiability of a \pc.
+	is clearly a \emph{no}-instance. If we let $q_1$ represent $(2\cdot \alpha < 4)$ and $q_2$ represent $(\alpha > 4)$, the formula becomes $q_1\land q_2$. The only assignment of truth variables that satisfy this is $q_1 = true$ and $q_2 = true$. But it is clear that there does not exist an integer value for $\alpha$ such that both the constraints hold. LIA is a \emph{decidable} theory, meaning that we can always correctly answer \emph{yes} or \emph{no} to an instance of the SMT problem, when it is with respect to LIA. Given an SMT formula, we can construct an Integer Linear Program with the expressions from the formula as constraints. This program will we feasible if and only if the SMT formula is satsifiable w.r.t LIA. We can check the feasibility of the Integer linear Program by using the \emph{branch-and-bound} algorithm. If the program is feasible, this will also give us a satisfying assignment \citep{Vanderbei01linearprogramming:}. This means that as long as we only consider programs with linear expressions as conditions, we can always decide the satisfiability of a \pc.
 	
 	\subsubsection{Undecidable theories}
 	Let us consider the following extension of the definition of expressions in LIA:
