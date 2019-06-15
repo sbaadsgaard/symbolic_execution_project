@@ -24,11 +24,11 @@
 		
 		
 		\path (1) edge             									node {} (2)
-		(2) edge [bend right=70pt] 							node[right] {$False$} (6)
-		(2) edge 											node[right] {$True$} (3)
+		(2) edge [bend right=70pt] 							node[right] {\textsl{False}} (6)
+		(2) edge 											node[right] {\textsl{True}} (3)
 		(3) edge											node {} (4)
-		(4) edge 											node[right] {$True$} (5)
-		(4) edge											node[left] {$False$} (6);
+		(4) edge 											node[right] {\textsl{True}} (5)
+		(4) edge											node[left] {\textsl{False}} (6);
 		\end{tikzpicture}
 	\end{center}
 	\caption{Control-flow graph for \textsc{Computetotal}}
@@ -87,8 +87,8 @@
 		
 		\path (1) edge             									node {} (2)
 		(2) edge                  								    node {} (3)
-		(3) edge [bend left = 55pt] 								node[right] {$False$} (6)
-		(3) edge                 								    node[right] {$True$} (4)
+		(3) edge [bend left = 55pt] 								node[right] {\textsl{False}} (6)
+		(3) edge                 								    node[right] {\textsl{True}} (4)
 		(4) edge 												    node {} (5)
 		(5) edge [bend left = 55pt]								node {} (3);
 		\end{tikzpicture}
@@ -101,7 +101,7 @@
 	\begin{figure}[!h]
 		\begin{center}
 			\begin{tikzpicture}[%
-			font=\scriptsize,
+			font=\footnotesize,
 			->,
 			shorten >=2pt,
 			>=stealth,

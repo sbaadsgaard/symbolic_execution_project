@@ -1,4 +1,4 @@
-In this chapter we will present the motivation for this project, by considering a motivating example that illustrates the usefulness of symbolic execution as a software testing technique.
+In this chapter  we will consider a motivating example that illustrates the usefulness of symbolic execution as a software testing technique.
 
 \section{A motivating example}
 Consider a company that sells a product at a unit price 2. If the total price of an order is greater than or equal 16, a discount of 10 is applied. However, the total price including the discount may not be lower than some specified minimum, that may change from order to order. The following program \textsc{ComputeTotal} takes integer inputs $units$ and $minumum$, and computes the total price based on this pricing scheme.
@@ -8,7 +8,7 @@ Consider a company that sells a product at a unit price 2. If the total price of
 		\State $total := 2\cdot units$
 		\If{$total \geq 16$}
 		\State $total := total - 10$
-		\Assert{$total \geq limit$}
+		\Assert{$total \geq minimum$}
 		\EndIf
 		\State \Return{$total$}
 		\EndProcedure
@@ -19,13 +19,12 @@ Consider a company that sells a product at a unit price 2. If the total price of
 
 \newpage
 
-We would like to know if this program ever fails due an assertion error, so we have to figure out if there exist integer inputs for which the program reaches the \textsl{Assertion Error} node in the control-flow graph. 
+We would like to know if this program ever fails due an assertion error, so we have to figure out if there exist integer inputs for which the program reaches the \textsl{Assertion Error} node in the control-flow graph shown in figure 2.1.
 We might try to run the program on different input values, e.g $(units = 8, minimum = 5)$, $(units = 7, minimum = 10)$. These input values does not cause the program to fail, but we are still not convinced that it wont fail for some other input values.
 By studying the program for some time, we realize that if the input satisfies the following constraints
-
 \begin{align*}
 	 2\cdot units  & \geq 16\\
 	 2 \cdot units - 10 & < minimum
 \end{align*}
 
-it will fail. This i is the case e.g for $(units = 8, minimum = 7)$. This realization was not immediately obvious, and for more complex programs, answering the same question is even more difficult. The key insight is that the conditional statements dictates which execution path the program will follow. In this report we will present \emph{symbolic execution}, which is a technique to systematically explore different execution paths and generate concrete input values that will follow these same paths. 
+it will fail. This is the case e.g for $(units = 8, minimum = 7)$. This realization was not immediately obvious, and for more complex programs, answering the same question is even more difficult. The key insight is that the conditional statements dictates which execution path the program will follow. In this report we will present \emph{symbolic execution}, which is a technique to systematically explore different execution paths and generate concrete input values that will follow these same paths. 

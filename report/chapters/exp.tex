@@ -5,11 +5,11 @@ In chapter 5 and 6, we describe an implementation of a concrete and symbolic int
 	\item Be able to clearly see the differences between a symbolic and a concrete execution by comparing the two interpreters, and looking at the necessary changes to the source language. 
 \end{itemize} 
 
-In this chapter we introduce the toy language, called \explanguage. We start by giving a formal definition through a grammar, and then we describe a purely functional implementation of a concrete interpreter for the language. We have chosen to implement both interpreters in a purely functional way to avoid dealing with states and side effects. This will allow us to easily showcase the important differences by simply looking at the relevant function signatures. In order to do this, we also describe a technique to avoid throwing exception whenever we encounter errors, such as type errors, assertion errors or referencing undefined variables or functions. Doing this gives a much more elegant implementation, and it greatly simplifies the implementation of the symbolic interpreter as we do not wish to interrupt the execution whenever we encounter such an error.
+In this chapter we introduce the toy language, called \explanguage. We start by giving a formal definition through a grammar, and then we describe a purely functional implementation of a concrete interpreter for the language. We have chosen to implement both interpreters in a purely functional way to avoid dealing with states and side effects.This will allow us to easily see the differences by simply comparing relevant function signatures. In order to do this, we also describe a technique to avoid throwing exception whenever we encounter errors, such as type errors, assertion errors or referencing undefined variables or functions. Doing this gives a much more elegant implementation, and it greatly simplifies the implementation of the symbolic interpreter as we do not wish to interrupt the execution whenever we encounter such an error.
 
 \section{Syntax of \explanguage}
 
-\explanguage consists of expressions and statements. Expressions evaluates to values and does not change the control flow of the program. A statement evaluates to a value and a possibly updated variable environment. They may also change the control flow of the program through conditional statements.
+\explanguage consists of expressions and statements. Expressions evaluates to values and do not change the control flow of the program. A statement evaluates to a value and a possibly updated variable environment. They may also change the control flow of the program through conditional statements.
  
 
 \subsection{Expressions}
@@ -80,11 +80,20 @@ To interpret \explanguage we define the three following functions
 	\caption{High level overview of the interpreter implementation in \textsl{Scala}.}
 \end{figure}
 
- \noindent where \textsl{interpProg} acts as the entry function. It takes a program \textsl{p} of type \textsl{Prog(funcs: Map[Id, FDecl], fCall: CallExp)} and calls \textsl{interpExp} with \textsl{p}, \textsl{fCall} and a fresh environment. We use an immutable map of type \mbox{\textsl{Map[Id, ConcreteValue]}} to represent our environment. From the signature of \textsl{interpExp} we see that the interpretation of an expression depends on the current environment and the program which holds the top level functions, and that it results in a concrete value. The final function is \textsl{interpStm} whose signature tells us that the interpretation of a statement also depends on the current environment and the program, and that results in both a concrete value and a potentially updated environment. 
+ \noindent where \textsl{interpProg} acts as the entry function. It takes a program \textsl{p} of type \textsl{Prog(funcs: Map[Id, FDecl], fCall: CallExp)} and calls \textsl{interpExp} with \textsl{p}, \textsl{fCall} and a fresh environment. We use an immutable map of type 
+ \begin{equation*}
+ 	\textsl{Map[Id, ConcreteValue]}
+ \end{equation*}
+ to represent our environment. From the signature of \textsl{interpExp} we see that the interpretation of an expression depends on the current environment and the program which holds the top level functions, and that it results in a concrete value. The final function is \textsl{interpStm} whose signature tells us that the interpretation of a statement also depends on the current environment and the program, and that results in both a concrete value and a potentially updated environment. 
 
 \subsection{Error handling without side effects}
  As previously mentioned we wish to avoid side effects in our implementation. We must therefore avoid throwing exceptions whenever we encounter errors.
- Instead we define a trait \textsl{Result[+V, +E]}, that can either be \textsl{Ok(v: V)},  or \textsl{Error(e: E)}, for some types \textsl{V} and \textsl{E} \cite{Chiusano:2014:FPS:2688794}.
+ Instead we define a trate of type 
+ \begin{equation*}
+ 	\textsl{Result[+V, +E]}
+ \end{equation*}
+ 
+  that can either be \textsl{Ok(v: V)},  or \textsl{Error(e: E)}, for some types \textsl{V} and \textsl{E} \citep{Chiusano:2014:FPS:2688794}.
 
 \begin{figure}[!h]
 	\begin{lstlisting}[style=simple]
@@ -97,9 +106,9 @@ To interpret \explanguage we define the three following functions
 We let \textsl{InterpExp} have return value \textsl{Result[ConcreteValue, String]}, meaning we return \textsl{Ok(v: ConcreteValue)} if we do not encounter any errors, and \textsl{Error(e: String)} if we do. In this case \textsl{e} will be a message that describes what sort of error we encountered. \textsl{InterpStm} has return value 
  \textsl{Result[(ConcreteValue, HashMap[Id, String]), String]} since we also return a potentially updated environment. 
 
-\subsubsection{Map and flatMap}
+\subsubsection{Map, flatMap and traverse}
 
-We define three functions \textsl{map} and \textsl{flatMap} and traverse:
+We define three functions \textsl{map}, \textsl{flatMap} and \textsl{traverse}, to be able to apply functions to the results:
 
 \begin{lstlisting}[style=simple]
 	def map[T](f: V => T): Result[T, E] = this match {

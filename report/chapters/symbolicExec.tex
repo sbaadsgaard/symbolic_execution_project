@@ -3,9 +3,7 @@ In this chapter we will cover the theory behind symbolic execution. We will star
 
 \section{Symbolic executing of a program}
 	
-	During a normal execution of a program, input values consists of integers. During a symbolic execution we replace concrete values by symbols e.g $\alpha$ and $ \beta$, that acts as placeholders for actual integers. We will refer to symbols and arithmetic expressions over these as \emph{symbolic values}.
-	 The program environment consists of variables that can reference both concrete and symbolic values \citep{CadarSen13} \citep{King76}.
-	\\
+	During a normal execution of a program, input values consists of integers. During a symbolic execution we replace concrete values by symbols e.g $\alpha$ and $ \beta$, that acts as placeholders for actual integers. We will refer to symbols and arithmetic expressions over these as \emph{symbolic values} \citep{CadarSen13} \citep{King76}.                 
 	To illustrate this, we consider the following program that takes parameters $a, b$ and $ c$ and computes their sum. The computation may seem unnecessarily complicated, but we do it this way to clearly what we mean by symbolic values, and how they relate to concrete values.
 	\begin{figure}[!h]
 		\begin{algorithmic}
@@ -29,12 +27,8 @@ In this chapter we will cover the theory behind symbolic execution. We will star
 	We then get the following execution: First we assign $\alpha + \beta$ to $x$. We then assign $\beta + \gamma$ to $y$. Next we assign $(\alpha + \beta) + (\beta + \gamma) - \beta$ to $z$.Finally we return $z = \alpha + \beta + \gamma$. We can conclude that the program correctly computes the sum of $a, b$ and $c$, for any possible value of these.
 	
 \section{Execution paths and path constraints}
-		The program that we considered in the previous section contains no conditional statements, which means it only has a single possible execution path. In general, a program with conditional statements $s_1, s_2, \ldots, s_n$ with conditions $q_1, q_2, \ldots, q_n$, will have several execution paths that are uniquely determined by the value of these conditions. In symbolic execution, we model this by introducing a \emph{path-constraint} for each execution path. The \emph{path-constraint} is a list of boolean expressions $\lbrack q_1, q_2, \ldots, q_k \rbrack$ over the symbolic values, corresponding to conditions from the conditional statements along the path. At the start of an execution, the \emph{path-constraint} only contains the expression $true$, since we have not encountered any conditional statements. to continue execution along a path, $q_1 \land \ldots \land q_k$ must be \emph{satisfiable}. To be \emph{satisfiable}, there must exist an assignment of integers to the symbols, such that the conjunction of the conditions evaluates to true. For example, $q = (2\cdot \alpha > \beta) \land (\alpha < \beta)$ is satisfiable, because we can choose $\alpha = 10$ and $\beta = 15$ in which case $q$ evaluates to \emph{true}. On the other hand $q' = (2 \cdot \alpha < 4) \land (\alpha > 4)$ is clearly not satisfiable since the first condition stipulates that $\alpha < 2$ and the second condition stipulates that $\alpha > 4$.
+		The program that we considered in the previous section contains no conditional statements, which means it only has a single possible execution path. In general, a program with conditional statements $s_1, s_2, \ldots, s_n$ with conditions $q_1, q_2, \ldots, q_n$, will have several execution paths that are uniquely determined by the value of these conditions. In symbolic execution, we model this by introducing a \emph{path-constraint} for each execution path. The \emph{path-constraint} is a list of boolean expressions $\lbrack q_1, q_2, \ldots, q_k \rbrack$ over the symbolic values, corresponding to conditions from the conditional statements along the path. At the start of an execution, the \emph{path-constraint} is simply the empty list, since we have not encountered any conditional statements. to continue execution along a path, $q_1 \land \ldots \land q_k$ must be \emph{satisfiable}. To be \emph{satisfiable}, there must exist an assignment of integers to the symbols, such that the conjunction of the conditions evaluates to true. For example, $q = (2\cdot \alpha > \beta) \land (\alpha < \beta)$ is satisfiable, because we can choose $\alpha = 10$ and $\beta = 15$ in which case $q$ evaluates to \emph{true}. On the other hand $q' = (2 \cdot \alpha < 4) \land (\alpha > 4)$ is clearly not satisfiable since the first condition stipulates that $\alpha < 2$ and the second condition stipulates that $\alpha > 4$.
 		\\
-		
-		\iffalse
-		 This situation can for example occur if we are executing two consecutive \textsl{if}-statements, where the first one has condition $2\cdot \alpha < 4$ and the second has condition $\alpha > 4$. 
-		\fi
 	
 		\noindent Whenever we reach a conditional statement with condition $q_k$, we consider the two following expressions:
 	
@@ -60,28 +54,31 @@ In this chapter we will cover the theory behind symbolic execution. We will star
 		
 		First we assign $2\cdot \alpha$ to $total$. We then reach an \textsl{if}-statement with condition $\alpha \cdot 2 \geq 16$. To proceed, we need to check the satisfiability of the following two expressions:
 		\begin{enumerate}
-			\item $true \land (\alpha \cdot 2 \geq 16)$
-			\item $true \land \neg (\alpha \cdot 2 \geq 16)$.
+			\item $(\alpha \cdot 2 \geq 16)$
+			\item $\neg (\alpha \cdot 2 \geq 16)$.
 		\end{enumerate}
-		Since both these expressions are satisfiable, we need to fork. We continue execution with a new  \emph{path-constraint} $\lbrack true, (\alpha \cdot 2 \geq 16) \rbrack$, along the path corresponding to the condition evaluating to \emph{true}. We also start a new execution with the same environment and a \emph{path-constraint} equal to $\lbrack true, \neg (\alpha \cdot 2 \geq 16) \rbrack$. This execution will continue along the path corresponding to the condition evaluating to \emph{false}, and it immediately reaches the return statement and returns $\alpha \cdot 2$.
+		Since both these expressions are satisfiable, we need to fork. We continue execution with a new  \emph{path-constraint} $\lbrack (\alpha \cdot 2 \geq 16) \rbrack$, along the path corresponding to the condition evaluating to \emph{true}. We also start a new execution with the same environment and a \emph{path-constraint} equal to $\lbrack \neg (\alpha \cdot 2 \geq 16) \rbrack$. This execution will continue along the path corresponding to the condition evaluating to \emph{false}, and it immediately reaches the return statement and returns $\alpha \cdot 2$.
 		The first execution assigns $2\cdot \alpha - 10$ to $total$ and then reach an \textsl{assert}-statement with condition $2\cdot \alpha - 10 \geq \beta$. We consider the following expressions:
 		\begin{enumerate}
-			\item $true \land (\alpha \cdot 2 \geq 16) \land (((2\cdot \alpha) - 10) \geq \beta)$
-			\item $true \land (\alpha \cdot 2 \geq 16) \land \neg (((2\cdot \alpha) - 10) \geq \beta)$
+			\item $(\alpha \cdot 2 \geq 16) \land (((2\cdot \alpha) - 10) \geq \beta)$
+			\item $ (\alpha \cdot 2 \geq 16) \land \neg (((2\cdot \alpha) - 10) \geq \beta)$
 		\end{enumerate}
 		Both of these expressions are satisfiable, so we fork again. In the end we have discovered all three possible execution paths with the following \emph{path-constraints}:
 		\begin{enumerate}
-			\item $true \land \neg (\alpha \cdot 2 \geq 16)$
-			\item $true \land (\alpha \cdot 2 \geq 16) \land (((2\cdot \alpha) - 10) \geq \beta)$
-			\item $true \land (\alpha \cdot 2 \geq 16) 
-			\land \neg (((2\cdot \alpha) - 10) \geq \beta)$.
+			\item $ \neg (\alpha \cdot 2 \geq 16)$
+			\item $ (\alpha \cdot 2 \geq 16) \land ((2\cdot \alpha - 10) \geq \beta)$
+			\item $ (\alpha \cdot 2 \geq 16) 
+			\land \neg ((2\cdot \alpha - 10) \geq \beta)$.
 		\end{enumerate}
 		
 		%\exectree
-		The first two \emph{path-constraints} corresponds to the two different paths that leads to the return  ment, where the first one returns $2\cdot \alpha$ and the second one returns $2\cdot \alpha - 10$. Inputs that satisfy these, does not result in a crash.
+		The first two \emph{path-constraints} corresponds to the two different paths that leads to the return  statement, where the first one returns $2\cdot \alpha$ and the second one returns $2\cdot \alpha - 10$. Inputs that satisfy these, do not result in a crash.
 		The final \emph{path-constraint} corresponds to the path that leads to the \textsl{Assertion Error}, so we can conclude that all input values that satisfy these constraints, will result in a program crash.
-	
 		
+		\noindent We can now solve each of these path-constraints to obtain concrete input values that will execute along the given path.
+		Consider for example the second path-constraint. The first condition tells us that $\alpha \geq 8$, so we can choose $\alpha = 8$. From the second condition we then get that $6  \geq \beta$, so we can choose $\beta = 6$. A concrete execution of the program with $units = 8$ and $minimum = 6$ will then follow the execution path corresponding to the second path-constraint. We can do the same for the remaining two path-constraints, and ind the end we will have a set of concrete input values for each possible execution path. 
+	
+\iffalse		
 \section{Constraint solving}
 	As we just described, a symbolic execution of a program results in one or more \emph{path-constraints} corresponding to each possible execution path. We know that each of these \emph{path-constraints} are satisfiable, so we can solve the \pc by finding an assignment of concrete values to the symbols, that causes it to evaluate to true. Consider for example 
 	
@@ -91,25 +88,12 @@ In this chapter we will cover the theory behind symbolic execution. We will star
 	
 	which is one of the three resulting \emph{path-constraints} from the motivating example. From the first condition we get that $\alpha \geq 8$, so we can choose $\alpha = 8$. The second condition then gives us that $6 \geq \beta$, so we can choose $\beta = 6$. If we do a concrete execution of the program with $units = 8$ and $minimum = 6$, it will follow the execution path that correspond to this \pc. We can do the same for the remaining two \emph{path-constraints}, and in the end we will have a pair of concrete input values for each possible execution path. So symbolic execution not only allows us to explore all possible execution paths, it also allows to generate a small set of concrete input values that cover all these paths.  
 
-	
-	\iffalse
-	In the previous section we described how to handle programs with multiple execution paths by introducing a \emph{path-constraint} for each path, which a list of constraints on the input symbols. This system of constraints defines a class of integers that will cause the program to execute along this path. By solving the system from each \emph{path-constraint}, we obtain a member from each of class which forms a set of concrete inputs that cover all possible paths.    
-	
-	If we consider the motivating example again, we found three different paths, represented by the following \emph{path-constraints}:
-	\begin{enumerate}
-		\item $true \land \neg (\alpha \cdot 2 \geq 16)$
-		\item $true \land (\alpha \cdot 2 \geq 16) \land (2\cdot \alpha - 10 \geq \beta)$
-		\item $true \land (\alpha \cdot 2 \geq 16) \land \neg (2\cdot \alpha - 10 \geq \beta)$.
-	\end{enumerate}
-	
-	By solving for $\alpha$ and $\beta$, we obtain the set of inputs $\{(7, \beta), (8,6), (8, 7)\}$, that covers all possible execution paths. Note that we have excluded a concrete value for $\beta$ in the first test case, because the \emph{path-constraint} does not depend on the value of $\beta$. 
-	 
-	\fi 
-\section{Limitations and challenges of symbolic execution}
+\fi
+\section{Limitations of symbolic execution}
 	So far we have only considered symbolic execution of programs with a small number of execution paths. Furthermore, the constraints placed on the input symbols have all been linear expressions.
 	In this section we will cover the challenges that arise when we consider more general programs.
 	
-	\subsection{The number of possible execution paths} 
+	\subsection{The path explosion problem} 
 		Since each conditional statement in a given program can result in two different execution paths, the total number of paths to be explored is potentially exponential in the number of conditional statements. 
 		For this reason, the running time of the symbolic execution quickly gets out of hands if we explore all paths. 
 		 The challenge gets even greater if the program contains a looping statement. In this case, the number of execution paths is potentially infinite \citep{CadarSen13}.
@@ -131,35 +115,35 @@ In this chapter we will cover the theory behind symbolic execution. We will star
 		
 	This program contains a \textsl{while}-statement with condition $i \leq b$. The $k'th$ time we reach this statement we will consider the following two expressions:
 	\begin{enumerate}
-		\item $true \land (1 \leq \beta) \land (2 \leq \beta) \land \ldots \land (k-1 \leq \beta) $
-		\item $true \land (1 \leq \beta) \land (1 \leq \beta) \land \ldots \land \neg (k-1 \leq \beta) $.
+		\item $(1 \leq \beta) \land (2 \leq \beta) \land \ldots \land (k-1 \leq \beta) $
+		\item $(1 \leq \beta) \land (1 \leq \beta) \land \ldots \land \neg (k-1 \leq \beta) $.
 	\end{enumerate}
 	Both of these expressions are satisfiable, so we fork the execution. This is the case for any $k > 0$, which means that the number of possible execution paths is infinite. If we insist on exploring all paths, the symbolic execution will simply continue for ever. To avoid this, we can include some other termination criteria. As an example, we could have limit on the number of times we allow the execution to fork, and as soon as this limit is reached we simply ignore any further execution paths.
 	
-	\subsection{Deciding satisfiability of \emph{path-constraints}}
+	\subsection{Deciding satisfiability of path-constraints}
 	A key component of symbolic execution, is deciding if a \emph{path-constraint} is satisfiable, in which case the corresponding execution path is eligible for exploration. Consider the following \emph{path-constraint} from the motivating example:
 	
 	\begin{equation*}	
-		true \land (\alpha \cdot 2 \geq 16) \land \neg (2\cdot \alpha - 10 < \beta).
+		(\alpha \cdot 2 \geq 16) \land (2\cdot \alpha - 10 \geq \beta).
 	\end{equation*}
 	
 	To decide if this is satisfiable or not, we must determine if there exist an assignment of integer values to $\alpha$ and $\beta$ such that the formula evaluates to \emph{true}. We notice that the formula is a conjunction of linear inequalities. We can assign these to variables $q_1$ and $q_2$ and get
 	\begin{align*}
 		q_1 & = (\alpha \cdot 2 \geq 16) \\
-		q_2 & = (2\cdot \alpha - 10 < \beta)
+		q_2 & = (2\cdot \alpha - 10 \geq \beta)
 	\end{align*}
-	The formula would then be $true\land q_1 \land \neg q_2$,
+	The formula would then be $q_1 \land q_2$,
 	where $q_1$ and $q_2$ can have values \emph{true} or \emph{false} depending on whether or not the linear inequality holds for some integer values of $\alpha$ and $\beta$. The question then becomes twofold: Does there exist an assignment of \emph{true} and \emph{false} to $q_1$ and $q_2$ such that the formula evaluates to true? And if so, does this assignment lead to a system of linear inequalities that is satisfiable?
-	In this example, we can assign \emph{true} to $q_1$ and \emph{false} to $q_2$, which gives the following system of linear inequalities:
+	In this example, we can assign \emph{true} to both $q_1$ and $q_2$, which gives the following system of linear inequalities:
 	\begin{align*}
-		& \alpha \cdot 2 \geq 16 \\
-		2  \cdot & \alpha - \beta \geq 10 
+		 \alpha \cdot 2 &\geq 16 \\
+		2  \cdot  \alpha - \beta &\geq 10 
 	\end{align*}
 	
-	where we gathered the constant terms on the left hand side, and the symbols the right hand side. From the first equation we get that $\alpha \geq 8$ so we choose $\alpha = 8$. From the second equation we then get that $\beta \leq 6$, so we choose $\beta = 6$ and this gives us a satisfying assignment for the path constraint. Since deciding satsifiability of a \pc is such an critical part of symbolic execution, it is important to know if we can always correctly \emph{yes} or \emph{no}. In the next section we will study this question more closely, and we will see that it depends on what sort of constraints we place on the input values. 
+	where we gathered the constant terms on the right hand side, and the symbols the left hand side. We have already seen that $\alpha = 8$ and $\beta = 6$ is a satisfying assignment, so the path-constraint is indeed satisfiable. Since deciding satsifiability of a \pc is such an critical part of symbolic execution, it is important to know if we can always correctly \emph{yes} or \emph{no}. In the next section we will study this question more closely, and we will see that it depends on what sort of constraints we place on the input values. 
 	\subsubsection{The SMT problem}
 
-	The example we just gave, is an instance of the \emph{Satisfiability Modulo Theories}(SMT) problem. To understand SMT, we first consider the \emph{Boolean Satisfiability}(SAT) problem. In this problem we are given a CNF formula , which is the logical conjunction 1 or more clauses, where a clause is the logical disjunction of one or more boolean variables or their negation.  We want to decide if there exists an assignment of truth values to each variable such that the formula evaluates to true. for example, $(q_1 \lor q_2 \lor \neg q3) \land (q_1 \lor \neg q_2 \lor q_3)$ is a \emph{yes}-instance of this problem, since $q_1 = true$, $q_2 = false$ and $q_3 = true$ causes the formula to evaluate to \emph{true}. On the other hand $(q_1 \lor q_2 \lor q_3) \land (\neg q_1 \lor \neg q_2 \lor \neg q_3)$ is clearly a \emph{no}-instance. This problem is \emph{decidable}, meaning that we can always correctly answer \emph{yes} or \emph{no} to whether or not a given formula is satisfiable. However it is also NP-complete, which means that we do not know any method of solving this problem with a better worst-case running time than simply trying all possible assignments which is exponential in the number of clauses \citep{Miltersen15}. SMT is then an extention of this problem. We now let the boolean variables $q_1, q_2, \ldots, q_n$ represent expressions from some theory such as the \emph{theory of integer linear arithmetic(LIA)} \citep{DeMoura2011}. In LIA, an expression e is defined as 
+	The example we just gave, is an instance of the \emph{Satisfiability Modulo Theories}(SMT) problem. To understand SMT, we first consider the \emph{Boolean Satisfiability}(SAT) problem. In this problem we are given a CNF formula , which is the logical conjunction 1 or more clauses, where a clause is the logical disjunction of one or more boolean variables or their negation.  We want to decide if there exists an assignment of truth values to each variable such that the formula evaluates to true. for example, $(q_1 \lor q_2 \lor \neg q3) \land (q_1 \lor \neg q_2 \lor q_3)$ is a \emph{yes}-instance of this problem, since $q_1 = true$, $q_2 = false$ and $q_3 = true$ causes the formula to evaluate to \emph{true}. On the other hand $(q_1 \lor q_2 \lor q_3) \land (\neg q_1 \lor \neg q_2 \lor \neg q_3)$ is clearly a \emph{no}-instance. This problem is \emph{decidable}, meaning that we can always correctly answer \emph{yes} or \emph{no} to whether or not a given formula is satisfiable. However it is also NP-complete, which means that we do not know any method of solving this problem with a better worst-case running time than simply trying all possible assignments which is exponential in the number of clauses \citep{Miltersen15}. SMT is then an extention of this problem. In SMT, the boolean variables $q_1, q_2, \ldots, q_n$ represent expressions from some theory such as the \emph{theory of integer linear arithmetic(LIA)} \citep{DeMoura2011}. In LIA, an expression e is defined as 
 		\begin{alignat*}{3}
 			e & \in \textsc{Expression} && := \quad p \bowtie p\\
 			\bowtie & \in \textsc{Constraint} && := \quad \leq \alt \geq \alt =\\
@@ -168,19 +152,19 @@ In this chapter we will cover the theory behind symbolic execution. We will star
 			a & \in \textsc{Integer} && := \quad 0 \alt 1 \alt -1 \alt \ldots\\ 
 			x & \in \textsc{Variable} && := \quad a \alt b \alt c \alt \ldots		
 		\end{alignat*} 
-	We now want to decide if the formula is satisfiable with respect to the theory. To be satisfiable w.r.t LIA, we require that there exist an assignment of truth values to the boolean variables such that the formula evaluates to \emph{true}, and that for such an assignment, there exists an assignment of integer values to the variables in the underlying expressions such that all the constraints are satisfied. In the previous section we showed that 
+	We now want to decide if the formula is satisfiable with respect to the theory. To be satisfiable w.r.t LIA, we require that there exist an assignment of truth values to the boolean variables such that the formula evaluates to \emph{true}, and that for such an assignment, there exists an assignment of integer values to the variables in the underlying expressions such that all the constraints are satisfied. In the previous section we saw that 
 	
 	\begin{equation*}	
-	true \land (\alpha \cdot 2 \geq 16) \land \neg (2\cdot \alpha - 10 < \beta).
+	(\alpha \cdot 2 \geq 16) \land (2\cdot \alpha - 10 \geq \beta).
 	\end{equation*}
 
-	is a \emph{yes}-instance of the SMT problem, since we could let $q_1$ represent $(\alpha \cdot 2 \geq 16)$ and $q_2$ represent $(2\cdot \alpha - 10 < \beta)$. We could then assign $q_1 = true$ and $q_2 = false$. For this assignment of truth variables, we could choose $\alpha = 8$ and $\beta = 6$ in which case all the constraints hold. On the other hand 
+	is a \emph{yes}-instance of the SMT problem, since we could let $q_1$ represent $(\alpha \cdot 2 \geq 16)$ and $q_2$ represent $(2\cdot \alpha - 10 \geq \beta)$. We could then assign $q_1 = true$ and $q_2 = true$. For this assignment of truth variables, we could choose $\alpha = 8$ and $\beta = 6$ in which case all the constraints hold. On the other hand 
 	
 	\begin{equation*}
 		(2\cdot \alpha < 4) \land (\alpha > 4)
 	\end{equation*}
 	
-	is clearly a \emph{no}-instance. If we let $q_1$ represent $(2\cdot \alpha < 4)$ and $q_2$ represent $(\alpha > 4)$, the formula becomes $q_1\land q_2$. The only assignment of truth variables that satisfy this is $q_1 = true$ and $q_2 = true$. But it is clear that there does not exist an integer value for $\alpha$ such that both the constraints hold. LIA is a \emph{decidable} theory, meaning that we can always correctly answer \emph{yes} or \emph{no} to an instance of the SMT problem, when it is with respect to LIA. Given an SMT formula, we can construct an Integer Linear Program with the expressions from the formula as constraints. This program will we feasible if and only if the SMT formula is satsifiable w.r.t LIA. We can check the feasibility of the Integer linear Program by using the \emph{branch-and-bound} algorithm. If the program is feasible, this will also give us a satisfying assignment \citep{Vanderbei01linearprogramming:}. This means that as long as we only consider programs with linear expressions as conditions, we can always decide the satisfiability of a \pc.
+	is clearly a \emph{no}-instance. If we let $q_1$ represent $(2\cdot \alpha < 4)$ and $q_2$ represent $(\alpha > 4)$, the formula becomes $q_1\land q_2$. The only assignment of truth variables that satisfy this is $q_1 = true$ and $q_2 = true$. But it is clear that there does not exist an integer value for $\alpha$ such that both the constraints hold. LIA is a \emph{decidable} theory, meaning that we can always correctly answer \emph{yes} or \emph{no} to an instance of the SMT problem, when it is with respect to LIA. Given an SMT formula, we can construct an Integer Linear Program with the expressions from the formula as constraints. This program will we feasible if and only if the SMT formula is satsifiable w.r.t LIA. We can check the feasibility of the Integer linear Program by using the \emph{branch-and-bound} algorithm. If the program is feasible, this will also give us a satisfying assignment \citep{Vanderbei01linearprogramming:}. This means that as long as we only consider programs with linear expressions as conditions, we can always decide the satisfiability of a path-constraint.
 	
 	\subsubsection{Undecidable theories}
 	Let us consider the following extension of the definition of expressions in LIA:
