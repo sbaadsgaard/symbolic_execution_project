@@ -1,7 +1,0 @@
-[0m[[0m[31merror[0m] [0m[0m/home/baadsgaard/bachelor_symbolic_execution/implementation/src/main/scala/Driver.scala:298:7: illegal start of simple expression[0m
-[0m[[0m[31merror[0m] [0m[0m      )[0m
-[0m[[0m[31merror[0m] [0m[0m      ^[0m
-[0m[[0m[31merror[0m] [0m[0m/home/baadsgaard/bachelor_symbolic_execution/implementation/src/main/scala/Driver.scala:303:1: ')' expected but '}' found.[0m
-[0m[[0m[31merror[0m] [0m[0m}[0m
-[0m[[0m[31merror[0m] [0m[0m^[0m
-[0m[[0m[31merror[0m] [0m[0mtwo errors found[0m
